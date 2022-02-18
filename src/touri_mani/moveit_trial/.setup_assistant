@@ -1,0 +1,11 @@
+moveit_setup_assistant_config:
+  URDF:
+    package: ""
+    relative_path: /home/hello-robot/Desktop/TouRI/touri_ros/src/stretch.urdf
+    xacro_args: ""
+  SRDF:
+    relative_path: config/stretch_description.srdf
+  CONFIG:
+    author_name: Shivani Sivakumar
+    author_email: ssivaku3@andrew.cmu.edu
+    generated_timestamp: 1644443033
