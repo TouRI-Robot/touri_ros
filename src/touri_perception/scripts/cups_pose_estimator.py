@@ -13,38 +13,54 @@ import cv2
 import numpy as np
 import rospy
 import time
-import mediapipe as mp
-# from __future__ import print_function
 import sys
-
-# import roslib
-# roslib.load_manifest('my_package')
 from std_msgs.msg import String
 from sensor_msgs.msg import Image
-from cv_bridge import CvBridge, CvBridgeError
-import numpy as np
+
+import mediapipe as mp
+mp_drawing = mp.solutions.drawing_utils
+mp_objectron = mp.solutions.objectron
 
 # -----------------------------------------------------------------------------
 # -----------------------------------------------------------------------------
-
+objectron = mp_objectron.Objectron(static_image_mode=False,
+                            max_num_objects=1,
+                            min_detection_confidence=0.2,
+                            min_tracking_confidence=0.99,
+                            model_name='Cup')
 
 class image_converter:
   def __init__(self):
     self.image_pub = rospy.Publisher("image_topic_2",Image)
-    self.bridge = CvBridge()
     self.image_sub = rospy.Subscriber("/camera/color/image_raw",Image,self.callback)
     
   def callback(self,data):
     try:
-      cv_image = np.frombuffer(data.data, dtype=np.uint8).reshape(data.height, data.width, -1)
+      image = np.frombuffer(data.data, dtype=np.uint8).reshape(data.height, data.width, -1)
+      image = cv2.rotate(image, cv2.cv2.ROTATE_90_CLOCKWISE)
+      image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+      
+      image.flags.writeable = False
+      image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+      results = objectron.process(image)
+
+      # Draw the box landmarks on the image.
+      image.flags.writeable = True
+      image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+      if results.detected_objects:
+          for detected_object in results.detected_objects:
+              mp_drawing.draw_landmarks(
+                image, detected_object.landmarks_2d, mp_objectron.BOX_CONNECTIONS)
+              mp_drawing.draw_axis(image, detected_object.rotation,
+                                  detected_object.translation)
+      # Flip the image horizontally for a selfie-view display.
+      # cv2.imshow('MediaPipe Objectron', cv2.flip(image, 1))
+      # if cv2.waitKey(5) & 0xFF == 27:
+      #   break
     except Exception as e:
       print(e)
 
-    (rows,cols,channels) = cv_image.shape
-    if cols > 60 and rows > 60 :
-      cv2.circle(cv_image, (50,50), 10, 255)
-
-    cv2.imshow("Image window", cv_image)
+    cv2.imshow("Image window", cv2.flip(image, 1))
     cv2.waitKey(3)
 
 

@@ -21,9 +21,9 @@
   <!-- -->
   
   <!-- OBJECT DETECTOR -->
-  <!-- <node name="cups_pose_estimator" pkg="touri_perception" type="cups_pose_estimator.py" output="screen">
+  <node name="cups_pose_estimator" pkg="touri_perception" type="cups_pose_estimator.py" output="screen">
     <param name="debug_directory" type="string" value="$(arg debug_directory)"/>
-  </node> -->
+  </node>
   <!-- -->
 
   <!-- KEYBOARD TELEOP -->
