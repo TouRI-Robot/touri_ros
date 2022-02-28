@@ -1,0 +1,33 @@
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+  File "/home/hello-robot/.local/lib/python3.6/site-packages/pcl/__init__.py", line 2, in <module>
+    from ._pcl import *
+ImportError: libpcl_surface.so.1.7: cannot open shared object file: No such file or directory
+
+https://github.com/strawlab/python-pcl/issues/317
+https://github.com/strawlab/python-pcl/issues/306
+https://github.com/santoshreddy254/easy_augment/issues/13
+
+ apt-cache policy libpcl-dev
+ sudo apt-get install libpcl-dev=1.7.2-14build1
+ sudo apt-get install libpcl1.7
+ sudo apt-get install libpcl-apps1.7 libpcl-io1.7 libpcl-surface1.7 libpcl-visualization1.7
+ sudo apt-get install libvtk6.2 
+ sudo apt-get install libopenmpi1.10
+ sudo apt-get install libvtk6.2 
+ sudo apt-get install libpcl-apps1.7 libpcl-io1.7 libpcl-surface1.7 libpcl-visualization1.7
+ sudo apt-get install libpcl1.7
+
+Using native installation
+
+ pcl/pcl_defs.pxd:514:17: Base constructor defined here.
+building 'pcl._pcl' extension
+x86_64-linux-gnu-gcc -pthread -DNDEBUG -g -fwrapv -O2 -Wall -g -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2 -fPIC -DEIGEN_YES_I_KNOW_SPARSE_MODULE_IS_NOT_STABLE_YET=1 -I/home/hello-robot/.local/lib/python3.6/site-packages/numpy/core/include -I/usr/include/pcl-1.8 -I/usr/include/ni -I/usr/include/openni2 -I/usr/include/eigen3 -I/usr/include/ni -I/usr/include/vtk-5.8 -I/usr/local/include/vtk-8.0 -I/usr/local/Cellar/vtk/8.0.1/include -I/usr/include/python3.6m -c pcl/_pcl_180.cpp -o build/temp.linux-x86_64-3.6/pcl/_pcl_180.o
+pcl/_pcl_180.cpp:1:2: error: #error Do not use this file, it is the result of a failed Cython compilation.
+ #error Do not use this file, it is the result of a failed Cython compilation.
+  ^~~~~
+error: command 'x86_64-linux-gnu-gcc' failed with exit status 1
+
+
+
+
