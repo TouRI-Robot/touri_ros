@@ -160,6 +160,8 @@ include_directories(
 ## in contrast to setup.py, you can choose the destination
 catkin_install_python(PROGRAMS
    scripts/teleop_mani_node.py
+   scripts/manipulation_test1.py
+   scripts/manipulation_test2.py
    DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
