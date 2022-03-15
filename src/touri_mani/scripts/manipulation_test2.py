@@ -680,7 +680,6 @@ class ManipulationNode(hm.HelloNode):
             # x_dest = input('Enter X(m): ')  
             # y_dest = input('Enter Y(m): ') 
             # z_dest = input('Enter Z(m): ')
-
             #! REMOVE START
             x_delta = input('Enter X(m): ')  
             y_delta = input('Enter Y(m): ') 
