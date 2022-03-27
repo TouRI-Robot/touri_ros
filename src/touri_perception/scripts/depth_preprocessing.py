@@ -100,7 +100,7 @@ def callback(ros_cloud):
 
     dists = open3d_cloud.compute_point_cloud_distance(inlier_cloud)
     dists = np.asarray(dists)
-    ind = np.where((dists >= 0.005) & (dists <= 0.05))[0]
+    ind = np.where((dists >= 0.003) & (dists <= 0.09))[0]
     cropped_pcd = open3d_cloud.select_by_index(ind)
     open3d.visualization.draw_geometries([cropped_pcd])
     
@@ -115,6 +115,53 @@ def callback(ros_cloud):
     colors[labels < 0] = 0
     cropped_pcd.colors = open3d.utility.Vector3dVector(colors[:, :3])
     open3d.visualization.draw_geometries([cropped_pcd])
+
+    # print("cropped pointcloud ",np.asarray(cropped_pcd.points).shape)
+    points = np.asarray(cropped_pcd.points)
+    
+    rospy.loginfo(f"point cloud has {max_label + 1} clusters")
+    colors = plt.get_cmap("tab20")(labels / (max_label if max_label > 0 else 1))
+    colors[labels < 0] = 0
+    
+    final_pcd = open3d.geometry.PointCloud()
+    
+    points_pts = np.array([[0,0,0]])
+    colours_pts = np.array([[0,0,0]])
+    
+    for i in range(max_label+1):
+        print(f"pointcloud has {colors.shape[0]} number of points.")
+        
+        pts = points[labels==i]
+        if(pts.shape[0]<200 or pts.shape[0]>2000):
+            continue
+        centroid = np.mean(pts,axis=0).reshape(1,-1)
+        
+        pts = np.concatenate((pts, centroid), axis=0)
+        
+        
+        colours = np.zeros_like(pts)
+        colours[:-1][:] = np.array([0.0,0.5,0.1])
+        colours[-1:][:] = np.array([1,0.0,0.0])
+        
+        # centroid_pts = open3d.geometry.PointCloud()
+        # centroid_pts.points = open3d.cpu.pybind.utility.Vector3dVector()
+        # new_pcd = open3d.geometry.PointCloud()
+        # new_pcd.points = open3d.cpu.pybind.utility.Vector3dVector(pts)
+        # new_pcd.colors = open3d.utility.Vector3dVector(colours) #[:, 0:3])
+        
+        # open3d.visualization.draw_geometries([new_pcd])
+        print("pts : ",pts.shape)
+        print("points_pts: ",points_pts.shape)
+        points_pts = np.concatenate((points_pts, pts), axis=0)
+        print("points_pts : ",points_pts)
+        colours_pts = np.concatenate((colours_pts, colours), axis=0)
+        # colours_pts.concatenate(colours_pts,colours)
+    
+    final_pcd = open3d.geometry.PointCloud()
+    final_pcd.points = open3d.cpu.pybind.utility.Vector3dVector(points_pts)
+    final_pcd.colors = open3d.utility.Vector3dVector(colours_pts)
+    
+    open3d.visualization.draw_geometries([final_pcd])
 
     # return cropped_pcd
 
