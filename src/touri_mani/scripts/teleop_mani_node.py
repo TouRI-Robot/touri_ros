@@ -28,9 +28,9 @@ def callback(data):
     print("lift_step",lift_step)
     print("arm_step",arm_step)
 
-    touri_bot.lift.move_by(lift_step)
-    touri_bot.arm.move_by(arm_step)
-    touri_bot.push_command()
+    # touri_bot.lift.move_by(lift_step)
+    # touri_bot.arm.move_by(arm_step)
+    # touri_bot.push_command()
 
 # -----------------------------------------------------------------------------
 

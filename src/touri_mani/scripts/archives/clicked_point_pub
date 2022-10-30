@@ -1,0 +1,1 @@
+rostopic pub /clicked_point geometry_msgs/PointStamped '{header: {stamp: now, frame_id: "map"}, point: {x: 0.1, y: 0.11, z: 0.7}}'

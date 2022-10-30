@@ -1,7 +1,7 @@
 #!/usr/bin/env python2.7
 import sys
 from os.path import dirname
-sys.path.append(dirname("/home/hello-robot/stretch_ros/stretch_funmap"))
+# sys.path.append(dirname("/home/hello-robot/stretch_ros/stretch_funmap"))
 
 from tkinter import N
 import firebase_admin
@@ -37,6 +37,11 @@ import ros_numpy
 import tf2_ros
 
 import argparse as ap
+
+# import  stretch_body.robot
+# robot = stretch_body.robot.Robot()
+# robot.startup()
+
 
 import hello_helpers.hello_misc as hm
 import hello_helpers.hello_ros_viz as hr
@@ -74,18 +79,60 @@ class ManipulationNode(hm.HelloNode):
         self.debug_directory = None
 
 
-    def actuate(self, lift, extend, yaw = 0, grip = 0.05, base_linear = 0, base_rotation = 0):
-        assert lift >= 0.2
+    # def actuate(self, lift, extend, yaw = 0, grip = 0.05, base_linear = 0, base_rotation = 0):
+    #     # assert lift >= 0.2
+    #     pose = {
+    #             'joint_lift': lift,
+    #             'wrist_extension': extend,
+    #              'joint_wrist_yaw': yaw,
+    #             # 'translate_mobile_base': base_linear,
+    #             # 'rotate_mobile_base': base_rotation,
+    #             'joint_gripper_finger_left' : grip,
+    #             }
+
+    #     self.move_to_pose(pose)
+
+    def actuate_extend(self, extend):
+        # assert lift >= 0.2
         pose = {
-                'joint_lift': lift,
+                # 'joint_lift': lift,
                 'wrist_extension': extend,
-                # 'joint_wrist_yaw': yaw,
+                #  'joint_wrist_yaw': yaw,
                 # 'translate_mobile_base': base_linear,
-                'rotate_mobile_base': base_rotation,
+                # 'rotate_mobile_base': base_rotation,
                 # 'joint_gripper_finger_left' : grip,
                 }
 
         self.move_to_pose(pose)
+
+    def actuate_lift(self, lift):
+        # assert lift >= 0.2
+        pose = {
+                'joint_lift': lift,
+                # 'wrist_extension': extend,
+                #  'joint_wrist_yaw': yaw,
+                # 'translate_mobile_base': base_linear,
+                # 'rotate_mobile_base': base_rotation,
+                # 'joint_gripper_finger_left' : grip,
+                }
+
+        self.move_to_pose(pose)
+
+    def actuate_grip(self, grip):
+        # assert lift >= 0.2
+        pose = {
+                # 'joint_lift': lift,
+                # 'wrist_extension': extend,
+                #  'joint_wrist_yaw': yaw,
+                # 'translate_mobile_base': base_linear,
+                # 'rotate_mobile_base': base_rotation,
+                'joint_gripper_finger_left' : grip,
+                }
+
+        self.move_to_pose(pose)
+    
+
+    
         
 
 
@@ -162,6 +209,26 @@ class ManipulationNode(hm.HelloNode):
         self.publish_path_markers(points, clicked_frame_id)
         
 ########################################################################################################################
+    def world_to_map(self, x,y,z):
+        
+        max_height_im = self.merged_map.max_height_im
+        if self.merged_map is None:
+            message = 'No map exists yet, so unable to plan a reach.'
+            rospy.logerr(message)
+            return
+
+        points_to_image_mat, pi_timestamp = max_height_im.get_points_to_image_mat("map", self.tf2_buffer)
+
+        if points_to_image_mat is None:
+            rospy.logerr('points_to_image_mat not found')
+            return
+
+        clicked_xyz = np.array([x, y, z, 1.0])
+        map_image_pixel = np.matmul(points_to_image_mat, clicked_xyz)[:3]
+
+        return map_image_pixel
+
+        
 
     def plan_to_reach(self, reach_xyz_pix, robot_xya_pix=None, floor_mask=None):
         # This is intended to perform coarse positioning of the
@@ -170,6 +237,7 @@ class ManipulationNode(hm.HelloNode):
         wrist_extension_m = None
 
         i_x, i_y, i_z = reach_xyz_pix
+        print("plan_to_reach:",i_x, i_y, i_z)
         
         max_height_im = self.merged_map.max_height_im
         # Check if a map exists
@@ -201,7 +269,7 @@ class ManipulationNode(hm.HelloNode):
             c = cv2.waitKey(0)
             
         if base_x_pix is None:
-            rospy.logerr('No valid base pose found for reaching the target.')
+            rospy.loginfo('No valid base pose found for reaching the target.')
             return None, None
 
         robot_reach_xya_pix = [base_x_pix, base_y_pix, base_ang_rad]
@@ -211,7 +279,7 @@ class ManipulationNode(hm.HelloNode):
         simple_reach_plan = []
         
         # close the gripper
-        simple_reach_plan.append({'joint_gripper_finger_left': 0.0})
+        # simple_reach_plan.append({'joint_gripper_finger_left': 0.0})
 
         # move the lift to be at the height of the target
         # The fingers of the gripper touch the floor at a joint_lift
@@ -258,7 +326,7 @@ class ManipulationNode(hm.HelloNode):
             robot_xy_pix, robot_ang_rad, timestamp = max_height_im.get_robot_pose_in_image(self.tf2_buffer)
             robot_xya_pix = [robot_xy_pix[0], robot_xy_pix[1], robot_ang_rad]
 
-        rospy.loginfo('Plan a path: Current XY -> {}'.format(robot_xy_pix))
+        rospy.loginfo('Plan a path: Current XY -> {}'.format(robot_xya_pix))
         max_height_im = self.merged_map.max_height_im
         rospy.loginfo('Plan a path: Planning a path')
         line_segment_path, message = na.plan_a_path(max_height_im, robot_xya_pix,
@@ -369,7 +437,7 @@ class ManipulationNode(hm.HelloNode):
                 # Command the robot to turn to point to the next
                 # waypoint.
                 rospy.loginfo('robot turn angle in degrees =' + str(turn_ang * (180.0/np.pi)))
-                at_goal = self.move_base.turn(turn_ang, publish_visualizations=True)
+                at_goal = self.move_base.turn(turn_ang, publish_visualizations=False)
                 if not at_goal:
                     message_text = 'Failed to reach turn goal.'
                     rospy.loginfo(message_text)
@@ -424,7 +492,7 @@ class ManipulationNode(hm.HelloNode):
                 # Command the robot to turn to point to the next
                 # waypoint.
                 rospy.loginfo('robot turn angle in degrees =' + str(turn_ang * (180.0/np.pi)))
-                at_goal = self.move_base.turn(turn_ang, publish_visualizations=True)
+                at_goal = self.move_base.turn(turn_ang, publish_visualizations=False)
                 if not at_goal:
                     message_text = 'Failed to reach turn goal.'
                     rospy.loginfo(message_text)
@@ -596,7 +664,7 @@ class ManipulationNode(hm.HelloNode):
             # Command the robot to turn to point to the next
             # waypoint.
             rospy.loginfo('robot turn angle in degrees =' + str(turn_ang * (180.0/np.pi)))
-            at_goal = self.move_base.turn(turn_ang, publish_visualizations=True)
+            at_goal = self.move_base.turn(turn_ang, publish_visualizations=False)
             if not at_goal:
                 message_text = 'Failed to reach turn goal.'
                 rospy.loginfo(message_text)
@@ -654,10 +722,223 @@ class ManipulationNode(hm.HelloNode):
 
 
 ########################################################################################################################    
+    def pose_to_map_pixel(self, pose_stamped):
+        goal_frame_id = pose_stamped.header.frame_id
+        goal_timestamp = pose_stamped.header.stamp
+        goal_point = pose_stamped.pose.position
+            
+        # Check if a map exists
+        if self.merged_map is None:
+            success = False
+            message = 'No map exists yet, so unable to drive to a good scan spot.'
+            rospy.logerr(message)
+            return None
+            
+        max_height_im = self.merged_map.max_height_im
+        map_frame_id = self.merged_map.max_height_im.voi.frame_id
+        
+        points_to_image_mat, pi_timestamp = max_height_im.get_points_to_image_mat(goal_frame_id, self.tf2_buffer)
+        #lookup_time=clicked_timestamp)
+
+        if (points_to_image_mat is not None):
+            c_x = goal_point.x
+            c_y = goal_point.y
+            c_z = goal_point.z
+            goal_xyz = np.array([c_x, c_y, c_z, 1.0])
+            goal_image_pixel = np.matmul(points_to_image_mat, goal_xyz)
+            i_x, i_y, i_z = goal_image_pixel[:3]
+            rospy.loginfo('clicked_image_pixel =' + str(goal_image_pixel))
+            end_xy = np.int64(np.round(np.array([i_x, i_y])))
+            rospy.loginfo('end_xy =' + str(end_xy))
+            return end_xy
+
+        return None
+
     
-    def main(self):
-        hm.HelloNode.main(self, 'stow_command', 'stow_command', wait_for_first_pointcloud=False)
+########################################################################################################################
+    def grasp(self, x,y,z, lift_height, extend):
+        # lift_height = 0.15
+        # self.actuate_lift(z + lift_height)
+        # self.actuate_extend(x + extend)
+        # self.actuate_grip(50)
+        # self.actuate_lift(z) 
+        # self.actuate_grip(0)
+        # self.actuate_lift(z + lift_height)
+        # self.actuate_extend(0.2)
+
+
+        gripper_close_pose = { 'joint_gripper_finger_left': 0}
+        self.move_to_pose(gripper_close_pose)
+        rospy.sleep(2)
+        lift_pose = { 'joint_lift': z + 0.15}
+        self.move_to_pose(lift_pose)
+
+        extend_pose = { 'wrist_extension': 0}
+        self.move_to_pose(extend_pose)
  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    # def reach_to_click_callback(self, clicked_msg):
+    #     rospy.loginfo('clicked_msg =' + str(clicked_msg))
+            
+    #     clicked_frame_id = clicked_msg.header.frame_id
+    #     clicked_timestamp = clicked_msg.header.stamp
+    #     clicked_point = clicked_msg.point
+
+    #     max_height_im = self.merged_map.max_height_im
+    #     # Check if a map exists
+    #     if self.merged_map is None:
+    #         message = 'No map exists yet, so unable to plan a reach.'
+    #         rospy.logerr(message)
+    #         return
+
+    #     points_to_image_mat, pi_timestamp = max_height_im.get_points_to_image_mat(clicked_frame_id, self.tf2_buffer)
+
+    #     if points_to_image_mat is None:
+    #         rospy.logerr('points_to_image_mat not found')
+    #         return
+
+    #     c_x = clicked_point.x
+    #     c_y = clicked_point.y
+    #     c_z = clicked_point.z
+    #     clicked_xyz = np.array([c_x, c_y, c_z, 1.0])
+    #     clicked_image_pixel = np.matmul(points_to_image_mat, clicked_xyz)[:3]
+    #     i_x, i_y, i_z = clicked_image_pixel
+    #     rospy.loginfo('clicked_image_pixel =' + str(clicked_image_pixel))
+
+    #     h, w = max_height_im.image.shape
+    #     if not ((i_x >= 0) and (i_y >= 0) and (i_x < w) and (i_y < h)):
+    #         rospy.logerr('clicked point does not fall within the bounds of the max_height_image')
+    #         return 
+
+    #     robot_xy_pix, robot_ang_rad, timestamp = max_height_im.get_robot_pose_in_image(self.tf2_buffer)
+    #     robot_xya_pix = [robot_xy_pix[0], robot_xy_pix[1], robot_ang_rad]
+        
+    #     reach_xyz_pix = clicked_image_pixel
+    #     print("starting planning")
+    #     print(robot_xya_pix)
+    #     robot_reach_xya_pix, simple_reach_plan = self.plan_to_reach(reach_xyz_pix, robot_xya_pix=robot_xya_pix)
+
+    #     print("done planning, starting navigation")
+
+    #     success, message = self.navigate_to_map_pixel(robot_reach_xya_pix[:2],
+    #                                                   end_angle=robot_reach_xya_pix[2],
+    #                                                   robot_xya_pix=robot_xya_pix)
+        
+    #     if success: 
+    #         for pose in simple_reach_plan:
+    #             self.move_to_pose(pose)
+    #         print("done navigation")
+    #     else:
+    #         rospy.logerr(message)
+    #         rospy.logerr('Aborting reach attempt due to failed navigation')
+
+    #     return
+    
+
+    def main_2(self):
+        print("main 2 before")
+        hm.HelloNode.main(self, 'mani_main_4', 'mani_main_4', wait_for_first_pointcloud=False)
+        print("main 2 end")
+        # trigger_request = TriggerRequest()     
+        # trigger_result = self.stop_the_robot_service(trigger_request)
+        # rospy.loginfo('trigger_result =' + str(trigger_result))
+        # pose = {
+        #          'joint_lift': 0.7,
+        #         'wrist_extension': 0.2,
+        #         # 'joint_wrist_yaw': 0,
+        #         # 'translate_mobile_base': base_linear,
+        #         # 'rotate_mobile_base': base_rotation,
+        #           'joint_gripper_finger_left' : 10,
+        #         }
+
+        # self.move_to_pose(pose)
+
+        pose1 = {
+                 'joint_lift': 0.6,
+                # 'wrist_extension': 0.3,
+                # 'joint_wrist_yaw': yaw,
+                # 'translate_mobile_base': base_linear,
+                # 'rotate_mobile_base': base_rotation,S
+                 # 'joint_gripper_finger_left' : 0,
+                }
+
+        
+
+        pose2 = {
+                #  'joint_lift': 0.8,
+                # 'wrist_extension': 0.4,
+                # 'joint_wrist_yaw': yaw,
+                # 'translate_mobile_base': base_linear,
+                # 'rotate_mobile_base': base_rotation,
+                  'joint_gripper_finger_left' : 5,
+                }
+
+
+        pose3 = {
+                'joint_lift': 0.8,
+                'wrist_extension': 0.4,
+                # 'joint_wrist_yaw': yaw,
+                # 'translate_mobile_base': base_linear,
+                # 'rotate_mobile_base': base_rotation,
+                 # 'joint_gripper_finger_left' : 0,
+                }
+        pose4 = {
+                'joint_lift': 0.5,
+                'wrist_extension': 0.2,
+                # 'joint_wrist_yaw': yaw,
+                # 'translate_mobile_base': base_linear,
+                # 'rotate_mobile_base': base_rotation,
+                 # 'joint_gripper_finger_left' : 0,
+                }
+        divided_print("pose1")
+        self.move_to_pose(pose1)
+        divided_print("pose2")
+        self.move_to_pose(pose2)
+        divided_print("pose3")
+        self.move_to_pose(pose3)
+        divided_print("pose4")
+        self.move_to_pose(pose4)
+
+        
+
+        
+
+    ########################################################################################################################
+    
+    
+
+
+
+        
+
+
+
+
+    ########################################################################################################################
+
+ 
+    def main(self):
+        hm.HelloNode.main(self, 'manipulation', 'manipulation', wait_for_first_pointcloud=False)
+        #self.dance()
+        
+        # self.actuate(lift=-0.1, extend=0, yaw=0, grip=0.05, base_linear=0, base_rotation=0)
+        # self.actuate(lift=-0, extend=0, yaw=0, grip=0.03, base_linear=0, base_rotation=0)
+        # self.actuate(lift=-0.2, extend=0, yaw=0, grip=0.05, base_linear=0, base_rotation=0)
+        
         self.debug_directory = rospy.get_param('/funmap/debug_directory')
         self.merged_map = None
         self.robot_poses = []
@@ -669,61 +950,108 @@ class ManipulationNode(hm.HelloNode):
         default_service = '/camera/switch_to_default_mode'
         self.trigger_d435i_default_mode_service = rospy.ServiceProxy(default_service, Trigger)
 
-        # self.perform_head_scan(fill_in_blindspot_with_second_scan=True)  
+        self.perform_head_scan(fill_in_blindspot_with_second_scan=True)
+        at_goal = self.move_base.forward(-0.35, publish_visualizations = False, detect_obstacles=False)
+
+        if not at_goal:
+            divided_print('Failed to reach turn goal.')
+
+        self.perform_head_scan(fill_in_blindspot_with_second_scan=False)  
         
-        while True:
+        # localized = False
+        while(True):
+            # ASK TO START MAPPING
             start = input('Start localizing: ')  
-            # self.perform_head_scan(fill_in_blindspot_with_second_scan=False, fast_scan=True, localize_only=True, global_localization=True)    
-            self.perform_head_scan(fill_in_blindspot_with_second_scan=True, fast_scan=False, global_localization=False)    
+            # if not localized:
+            self.perform_head_scan(fill_in_blindspot_with_second_scan=False, fast_scan=True, localize_only=False, global_localization=True)
+
+            divided_print("GOING TO ORIGIN")
+            # GO TO ORIGIN
+            o_x, o_y, o_z = self.world_to_map(0, 0, 0)
+            divided_print("GOING TO ORIGIN: o = {} , {}".format(o_x, o_y))
+            # robot_reach_xya_pix, simple_reach_plan = self.plan_to_reach(origin_coordinates)
+            robot_reach_xya_pix_origin = [o_x, o_y, 0]
+            success, message = self.navigate_to_map_pixel(robot_reach_xya_pix_origin[:2], end_angle=robot_reach_xya_pix_origin[2])
+
+            if not success:
+                divided_print("Failed to reach origin")
+                continue
+
+            self.perform_head_scan(fill_in_blindspot_with_second_scan=False, fast_scan=True, localize_only=True, global_localization=True)
+            #PRINT CURRENT BOT'S BOSE
             self.print_current_XY()
+            localized = True
 
-            # x_dest = input('Enter X(m): ')  
-            # y_dest = input('Enter Y(m): ') 
-            # z_dest = input('Enter Z(m): ')
-            #! REMOVE START
-            x_delta = input('Enter X(m): ')  
-            y_delta = input('Enter Y(m): ') 
-            angle = input('Enter angle(rad): ')
+            # GET WORLD FRAME DESINATION
+            x_dest = input('Enter X(m): ')  
+            y_dest = input('Enter Y(m): ') 
+            z_dest = input('Enter Z(m): ')
+            # x_dest = 0.5
+            # y_dest = 0
+            # z_dest = 0.7
 
-            divided_print("STARTING NAVIGATING")
+            # TRANSFORMcs TO MAP FRAME
+            clicked_image_pixel = self.world_to_map(x_dest, y_dest, z_dest)
+            i_x, i_y, i_z = clicked_image_pixel
 
-            delta_xy = np.array([x_delta, y_delta])
+            h, w = self.merged_map.max_height_im.image.shape
+            if not ((i_x >= 0) and (i_y >= 0) and (i_x < w) and (i_y < h)):
+                rospy.logerr('clicked point does not fall within the bounds of the max_height_image')
+                return 
 
-            rot_m = np.array(([cos(angle), -sin(angle)], [sin(angle), cos(angle)]))
+            divided_print("MAP COORDS: {}".format(clicked_image_pixel))
 
-            delta_xy = np.matmul(rot_m, delta_xy)
+            # GET CURRENT XYA
+            robot_xy_pix, robot_ang_rad, timestamp = self.merged_map.max_height_im.get_robot_pose_in_image(self.tf2_buffer)
+            robot_xya_pix = [robot_xy_pix[0], robot_xy_pix[1], robot_ang_rad]
+            
+            # GET DESTINATION XYA
+            reach_xyz_pix = clicked_image_pixel
 
-            max_height_im = self.merged_map.max_height_im
-            robot_xy_pix, robot_ang_rad, timestamp = max_height_im.get_robot_pose_in_image(self.tf2_buffer)
+            # PLAN THE PATH
+            robot_reach_xya_pix, simple_reach_plan = self.plan_to_reach(reach_xyz_pix, robot_xya_pix=robot_xya_pix)
 
-            robot_xy_pix = robot_xy_pix + delta_xy
+            # NAVIGATE TO PATH
+            try:
+                success, message = self.navigate_to_map_pixel(robot_reach_xya_pix[:2], end_angle=robot_reach_xya_pix[2], robot_xya_pix=robot_xya_pix)
+                time.sleep(1)
+            except Exception as e:
+                print("Error : ",e)
+                continue
+            # SET POSE
+            # trigger_request = TriggerRequest()     
+            # trigger_result = self.stop_the_robot_service(trigger_request)
+            # rospy.loginfo('trigger_result =' + str(trigger_result))
+            if success: 
+                localized = False
+                gripper_open_pose = { 'joint_gripper_finger_left': 50}
+                self.move_to_pose(gripper_open_pose)
+                for pose in simple_reach_plan:
+                    divided_print("poses: {}".format(pose))
+                    time.sleep(0.5)
+                    self.move_to_pose(pose)
+            else:
+                rospy.logerr(message)
+                rospy.logerr('Aborting reach attempt due to failed navigation')
+            
+            # trigger_request = TriggerRequest()     
+            # trigger_result = self.stop_the_robot_service(trigger_request)
+            # rospy.loginfo('trigger_result =' + str(trigger_result))
+            lift_height = 0.15
+            extend = 0.1
 
-            divided_print(robot_xy_pix)
 
-            success, message = self.navigate_to_map_pixel(end_xy= robot_xy_pix, end_angle=robot_ang_rad)
-            divided_print("DONE NAVIGATING")
-            #! REMOVE END
-            # final_dest_man = self.transform_xyz_to_xyz_pix(x_dest, y_dest, z_dest)
-            # divided_print(final_dest_man)
+            self.grasp(x_dest, y_dest,z_dest, lift_height, extend)
+            # print("starting actuation")
+            # # extend = simple_reach_plan.get("wrist_extension")
+            # self.actuate_extend(extend)
+            # print("done actuating")
 
-            # divided_print("PLANNING")
-            # dest_xya, mani_plan = self.plan_to_reach(final_dest_man)
-            # divided_print(dest_xya)
-            # divided_print("DONE PLANNING")
-
-            # divided_print("STARTING NAVIGATING")
-            # success, message = self.navigate_to_map_pixel(end_xy=dest_xya[:2], end_angle =dest_xya[2])
-            # divided_print("DONE NAVIGATING")
-
-            # if success:
-            #     for pose in mani_plan:
-            #         self.move_to_pose(pose)
-            #         divided_print("DONE MANIPULATING")
-                
-            # else:
-            #     rospy.loginfo(" Error, cannot reach")
-            #     divided_print("FAILED NAVIGATING")
+            
         
+
+
+               
 
 
 if __name__ == '__main__':

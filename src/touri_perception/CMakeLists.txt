@@ -7,10 +7,15 @@ project(touri_perception)
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
+set(OpenCV_DIR ~/trial/catkin_ws/src/stretch_ros/touri_ros/src/touri_perception/opencv_build)
+
 find_package(catkin REQUIRED COMPONENTS
+  roscpp
   rospy
   std_msgs
   message_generation
+  pcl_conversions pcl_ros
+  OpenCV
 )
 
 ## System dependencies are found with CMake's conventions
@@ -50,14 +55,17 @@ find_package(catkin REQUIRED COMPONENTS
 add_message_files(
    FILES
    TeleopNav.msg
+   obj_det.msg
  )
 
-## Generate services in the 'srv' folder
-# add_service_files(
-#   FILES
-#   Service1.srv
-#   Service2.srv
-# )
+# Generate services in the 'srv' folder
+add_service_files(
+  FILES
+  transform_service.srv
+  perception.srv
+  centroid_calc.srv
+  # Service2.srv
+)
 
 ## Generate actions in the 'action' folder
 # add_action_files(
@@ -105,6 +113,7 @@ catkin_package(
 #  INCLUDE_DIRS include
 #  LIBRARIES touri_perception
    CATKIN_DEPENDS rospy std_msgs message_runtime
+   roscpp pcl_conversions pcl_ros
 #  DEPENDS system_lib
 )
 
@@ -117,7 +126,16 @@ catkin_package(
 include_directories(
 # include
   ${catkin_INCLUDE_DIRS}
+  ${OpenCV_INCLUDE_DIRS}
 )
+
+include_directories(${PCL_INCLUDE_DIRS})
+link_directories(${PCL_LIBRARY_DIRS})
+add_definitions(${PCL_DEFINITIONS})
+# add_executable(cloud_trial src/cloud_sub.cpp)
+add_executable(centroid_service src/centroid_calc.cpp)
+# target_link_libraries(cloud_trial ${catkin_LIBRARIES} ${PCL_LIBRARIES})
+target_link_libraries(centroid_service ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${OpenCV_LIBRARIES})
 
 ## Declare a C++ library
 # add_library(${PROJECT_NAME}

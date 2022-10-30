@@ -1,13 +1,13 @@
 <launch>
 
-  <arg name="rviz"            default="false"                           doc="whether to show Rviz" />
+  <arg name="rviz"            default="false"                          doc="whether to show Rviz" />
   <arg name="map_yaml"        default="''"                             doc="previously captured FUNMAP map (optional)" />
   <arg name="debug_directory" default="$(env HELLO_FLEET_PATH)/debug/" doc="directory where debug imagery is saved" />
 
   <!-- REALSENSE D435i -->
   <include file="$(find stretch_core)/launch/d435i_high_resolution.launch"></include>
   <node name="d435i_configure" pkg="stretch_core" type="d435i_configure" output="screen">
-    <!--<param name="initial_mode" type="string" value="Default"/>-->
+    <param name="initial_mode" type="string" value="Default"/>
     <param name="initial_mode" type="string" value="High Accuracy"/>
   </node>
   <!-- -->
@@ -15,7 +15,7 @@
   <!-- FRUSTUM FIELD OF VIEW VISUALIZATION -->
   <node name="d435i_frustum_visualizer" pkg="stretch_core" type="d435i_frustum_visualizer" output="screen" />
   <!-- -->
-  
+
   <!-- STRETCH DRIVER -->
   <param name="/stretch_driver/broadcast_odom_tf" type="bool" value="false"/>
   <param name="/stretch_driver/fail_out_of_range_goal" type="bool" value="false"/>
@@ -27,8 +27,10 @@
     <param name="debug_directory" type="string" value="$(arg debug_directory)"/>
   </node>
   <!-- -->
+ 
 
   <!-- IMU FILTER -->
+   <!-- -->
   <include file="$(find stretch_core)/launch/imu_filter.launch" />
   <!-- -->
 
@@ -44,5 +46,7 @@
   <include file="$(find stretch_core)/launch/stretch_scan_matcher.launch" />
   <!-- -->
 
-    
+  <!-- <node name="ManipulationNode" pkg="touri_mani" type="manipulation_test3.py" output="screen"/> -->
+
+
 </launch>

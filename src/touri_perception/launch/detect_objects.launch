@@ -1,5 +1,4 @@
 <launch>
-
   <arg name="debug_directory" value="$(env HELLO_FLEET_PATH)/debug/"/>
   
   <!-- REALSENSE D435i -->
@@ -11,36 +10,17 @@
   <!-- -->
   
   <!-- STRETCH DRIVER -->
-  <param name="/stretch_driver/broadcast_odom_tf" type="bool" value="true"/>
-  <param name="/stretch_driver/fail_out_of_range_goal" type="bool" value="false"/>
-  <include file="$(find stretch_core)/launch/stretch_driver.launch" />
-  <!-- -->
-
   <!-- FRUSTUM FIELD OF VIEW VISUALIZATION -->	
   <node name="d435i_frustum_visualizer" pkg="stretch_core" type="d435i_frustum_visualizer" output="screen" />
-  <!-- -->
   
   <!-- OBJECT DETECTOR -->
-  <!-- <node name="cups_pose_estimator" pkg="touri_perception" type="cups_pose_estimator.py" output="screen">
-    <param name="debug_directory" type="string" value="$(arg debug_directory)"/>
-  </node> -->
+  <!-- <node name="cups_pose_estimator" pkg="touri_perception" type="cups_pose_estimator.py" output="screen"/> -->
 
-  <!-- <node name="numba_image_to_pointcloud" pkg="stretch_deep_perception" type="numba_image_to_pointcloud.py" output="screen">
-    <param name="debug_directory" type="string" value="$(arg debug_directory)"/>
-  </node>
-
-  <node name="detection_node" pkg="stretch_deep_perception" type="detection_node.py" output="screen">
-    <param name="debug_directory" type="string" value="$(arg debug_directory)"/>
-  </node> -->
-
-  <!-- -->
-
+  <!-- <node name="transforms_node" pkg="touri_mani" type="transforms_node.py" output="screen"/> -->
+  
   <!-- KEYBOARD TELEOP -->
-  <node name="keyboard_teleop" pkg="stretch_core" type="keyboard_teleop" output="screen"/>
-  <!-- -->
+  <!-- <node name="keyboard_teleop" pkg="stretch_core" type="keyboard_teleop" output="screen"/> -->
   
   <!-- VISUALIZE DETECTION -->
   <node name="rviz" pkg="rviz" type="rviz" output="screen" args="-d $(find stretch_deep_perception)/rviz/object_detection.rviz" />
-  <!-- -->
-  
 </launch>
