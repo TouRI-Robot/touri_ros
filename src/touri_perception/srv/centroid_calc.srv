@@ -1,0 +1,10 @@
+int8 x_req
+int8 y_req
+int8 w_req
+int8 h_req
+---
+bool estimated
+float32 x_reply
+float32 y_reply
+float32 z_reply
+float32 width

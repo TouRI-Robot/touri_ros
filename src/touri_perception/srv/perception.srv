@@ -1,0 +1,6 @@
+bool var1
+---
+bool detected
+float32 x_reply
+float32 y_reply
+float32 z_reply
