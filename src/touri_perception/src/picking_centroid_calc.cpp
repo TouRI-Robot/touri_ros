@@ -47,7 +47,7 @@
 #include <pcl/common/centroid.h>
 
 
-#include "touri_perception/centroid_calc.h"
+#include "touri_perception/picking_centroid_calc.h"
 #include "touri_perception/transform_service.h"
 
 
@@ -80,8 +80,8 @@ void callback(const ImageConstPtr& depth_sub, const ImageConstPtr& image_sub, co
     // ROS_INFO("getting data");
 }
 
-bool service_callback(touri_perception::centroid_calc::Request  &req,
-             touri_perception::centroid_calc::Response &res)
+bool service_callback(touri_perception::picking_centroid_calc::Request  &req,
+             touri_perception::picking_centroid_calc::Response &res)
 {
   cv_bridge::CvImagePtr cv_ptr;
   const sensor_msgs::ImageConstPtr& source = image_;
@@ -95,9 +95,6 @@ bool service_callback(touri_perception::centroid_calc::Request  &req,
     return  false;
   }
   
-  // cv_ptr = cv_bridge::toCvCopy(const ImageConstPtr& source, const std::string& encoding = std::string());
-  // cv_ptr = cv_bridge::toCvCopy(source, sensor_msgs::image_encodings::BGR8);
-  // const std::string &encoding=std::string()
   cout << "starting 3d pipeline!" << endl;
   int start_point1_x = req.x_start;
   int start_point1_y = req.y_start;
@@ -116,7 +113,6 @@ bool service_callback(touri_perception::centroid_calc::Request  &req,
   double centroidy = (h/2) + start_point1_y;
 
 cout << "Scaling" << endl;
-
 // // // scaling the bounding box
 
   double scaling_factor = 1.2;
@@ -130,12 +126,8 @@ cout << "Scaling" << endl;
 
   cv::Point start_point2(start_point2_x, start_point2_y);
   cv::Point end_point2(end_point2_x, end_point2_y);
-
-
-
 //   auto start_point2 = std::make_tuple(start_point2_x, start_point2_y);
 //   auto end_point2 = std::make_tuple(end_point2_x, end_point2_y);
-
 //   tuple<int,int,int> color1 {255,0,0};
 //   tuple<int,int,int> color2 {0,255,0};
   double thickness = 2;
@@ -176,135 +168,114 @@ vector<double> start_homo = {{start_point2_x, start_point2_y, 1.0}};
   vector<double> end_homo = {{end_point2_x, end_point2_y, 1.0}};
   double end_3d = dot_product(camera_matrix_inverse, end_homo);
 
-  double z = 0.75; 
-  double start_x_3d = ((start_point2_x - c_x) / f_x) * z;
-  double start_y_3d = ((start_point2_y - c_y) / f_y) * z;
-  double end_x_3d = ((end_point2_x - c_x) / f_x) * z;
-  double end_y_3d = ((end_point2_y - c_y) / f_y) * z;
+  // double z = 0.75;
 
-  ROS_INFO("Converting ROS PointCloud2 ->  open3d format");
-
-  pcl::PointCloud<pcl::PointXYZRGB>::Ptr pcl_cloud = boost::make_shared<pcl::PointCloud<pcl::PointXYZRGB>>();
-
-  // This will convert the message into a pcl::PointCloud
-  pcl::fromROSMsg(*cloud_, *pcl_cloud);
-  // pcl::PCLPointCloud2* pclCloud = new pcl::PCLPointCloud2; 
-  // pcl::PCLPointCloud2ConstPtr cloudPtr(pclCloud);
-  // pcl_conversions::toPCL(*cloud_, *pclCloud);
-  std::cout << "cloud.height : " << cloud_->height << "\n";
-  std::cout << "cloud.width : " << cloud_->width   << "\n";
-  size_t num_points = pcl_cloud->size(); 
-  std::cout << "Number of points : " << num_points << "\n";
-
-  pcl::CropBox<pcl::PointXYZRGB> boxFilter;
-  
-  std::cout << "start_x_3d : " << start_x_3d << "\n";
-  std::cout << "start_y_3d : " << start_y_3d << "\n";
-  std::cout << "end_x_3d : " << end_x_3d << "\n";
-  std::cout << "end_y_3d : " << end_y_3d << "\n";
-
-  boxFilter.setMin(Eigen::Vector4f(start_x_3d, start_y_3d, -1.0, 1.0));
-  boxFilter.setMax(Eigen::Vector4f(end_x_3d, end_y_3d, 1000.0, 1.0));
-  boxFilter.setInputCloud(pcl_cloud);
-  pcl::PointCloud<pcl::PointXYZRGB>::Ptr cropped_cloud (new pcl::PointCloud<pcl::PointXYZRGB>);
-  boxFilter.filter(*cropped_cloud);
-  pcl::ExtractIndices<pcl::PointXYZRGB> extract;
-  num_points = cropped_cloud->size();
-  std::cout << "Cropped points size : " << num_points << "\n";
-
-  std::vector<std::vector<float>> plane_normals;
-  std::vector<std::vector<float>> plane_centroids;
-  
-  int num_planes = 4;
-  for(int i = 0; i < num_planes; i++)
+  cv_bridge::CvImagePtr cv_ptr_depth;
+  const sensor_msgs::ImageConstPtr& source_depth = depth_;
+  try
   {
-    std::cout << "iteration : "<< i << "\n";
-    std::vector<int> inliers;
-    std::vector<int> outliers;
-    // RandomSampleConsensus object and compute the appropriated model
-    num_points = cropped_cloud->size();  
-    pcl::SampleConsensusModelPlane<pcl::PointXYZRGB>::Ptr model_p (new pcl::SampleConsensusModelPlane<pcl::PointXYZRGB> (cropped_cloud));
-    pcl::RandomSampleConsensus<pcl::PointXYZRGB> ransac (model_p);
-    ransac.setDistanceThreshold (.02);
-    ransac.computeModel();
-    pcl::Indices model;
-    ransac.getModel(model);
-    ransac.getInliers(inliers);
+    cv_ptr_depth = cv_bridge::toCvCopy(source_depth, sensor_msgs::image_encodings::TYPE_16UC1);
+  }
+  catch (cv_bridge::Exception& e)
+  {
+    ROS_ERROR("cv_bridge exception: %s", e.what());
+    return  false;
+  }
 
-    pcl::PointIndices::Ptr inlier_indices (new pcl::PointIndices);
-    inlier_indices->indices = inliers;
 
-    // Centroid computation
-    Eigen::Vector4f centroid;
-    pcl::compute3DCentroid(*cropped_cloud, *inlier_indices, centroid);
-    std::vector<float> plane_centroid(&centroid[0], centroid.data()+centroid.cols()*centroid.rows());
-    plane_centroids.push_back(plane_centroid);
+//   for(int i = 0; i < cv_ptr_depth.height; i++)
+//   {
+//     for (int j = 0; j < cv_ptr_depth.width; j++)
+//     {
+//         pix.val[0] = centroid_
+        
+//            }
+//   }
+//   sensor_msgs::Image depth_image;
+//   depth_image = *depth_;
 
-    std::cout << "Centroid : " << centroid << "\n"; 
+  //TODO: Figure out how to get the depth content 
+  // Z = depth_data[Y-10:Y+10, X-10:X+10]
 
-    // Extracting model
-    Eigen::VectorXf model_coefficients;
-    ransac.getModelCoefficients(model_coefficients);
-    std::vector<float> plane_normal(&model_coefficients[0], model_coefficients.data()+model_coefficients.cols()*model_coefficients.rows());
-    plane_normals.push_back(plane_normal);
+  ///////////////////////////////////////////
 
-    // Creating outliers
-    std::cout << "Inliers size : " << inliers.size() << "\n"; 
-    int inlier_iter = 0;
-    for(int i=0;i < num_points;++i){
-      if(inliers[inlier_iter] == i)
-        inlier_iter++;
-      else
-        outliers.push_back(i);
-    }
-    std::cout << "outliers size : " << outliers.size() << "\n";
-    pcl::PointCloud<pcl::PointXYZRGB>::Ptr outlier_cloud (new pcl::PointCloud<pcl::PointXYZRGB>);
-    pcl::copyPointCloud (*cropped_cloud, outliers, *outlier_cloud);
-    cropped_cloud = outlier_cloud;
+//   auto depth_content = depth_image.data;
+//   int depth_size = depth_image.height * depth_image.width;
+
+//   auto Z = depth_content.set_data_vec()
+//   for(int i = 0; i < depth_size; i++)
+//   {
+//     auto Z.
     
-    std::cout << "Iteration " << i << " - Cropped points size : " << cropped_cloud->size() << "\n";
-  }
- 
-  int a = 0;
-  int b = 0;
 
-  bool foundPlanes = false;
-  for(int i=0;i < num_planes; ++i){
-    for(int j=0;j < num_planes; ++j){
-      if(i!=j){
-        double dot_product_value = 0;
-        for (int k = 0; k < plane_normals[i].size(); ++k)
-          dot_product_value += (plane_normals[i][k] * plane_normals[j][k]);
-        if(abs(dot_product_value)<=1 && abs(dot_product_value)>=0.96){
-          a = i;
-          b = j;
-          foundPlanes = true;
-          break;
-        }
-      }     
+//   }
+
+/////////////////////////////////////////////
+// for(int i = 0; i < depth_size; i++)
+// {
+//     if ((int)depth_image[i]!=0)
+//     {
+//     double z_3d = std::mean(depth_image[i]);
+//     }
+// }
+
+  double z_3d = -1;
+  cv::Mat depth_image = cv_ptr_depth->image;
+  int window_size = 40;
+  std::cout << "centroid y : " << centroidy << "\n";
+  std::cout << "centroid x : " << centroidx << "\n";
+  
+  cv::Mat Z = depth_image(cv::Range((centroidy - window_size), (centroidy + window_size)), cv::Range((centroidx - window_size), (centroidx + window_size)));
+  // cv::Scalar tempVal = cv::mean( depth_image );
+  // float myMAtMean = tempVal.val[0];
+  int x = 0;
+  double sum = 0;
+
+  // for (int i = 0; i < Z.rows; i++)
+  // {
+  //   for(int j = 0; j < Z.cols; j++)
+  //   {
+  //       // std::cout << "Z.at<double>(j, i)  : " << Z.at<double>(j, i) << "\n";
+  //           // z_3d+= depth_image.at<double>(i, j);
+  //       if (Z.at<double>(j, i) > 0) {
+  //         sum= sum + Z.at<double>(j, i);
+  //         x++;  
+
+             
+  //   }
+  // }
+  // }
+
+  for (int i = 0; i < Z.rows; i++)
+  {
+    for(int j = 0; j < Z.cols; j++)
+    {
+        // std::cout << "Z.at<double>(j, i)  : " << Z.at<double>(j, i) << "\n";
+            // z_3d+= depth_image.at<double>(i, j);
+        if (Z.at<double>(j, i) > 0) {
+          std::cout << "Z.at<double>(j, i)  : " << Z.at<double>(j, i) << "\n";
+          sum= sum + Z.at<double>(j, i);
+          x++;  
+
+             
     }
-    if(foundPlanes){
-      break;
-    }
   }
-
-  std::cout << "a : " << a << "\n";
-  std::cout << "b : " << b << "\n";
-
-  vector<float> centroid_1 = plane_centroids[a];
-  vector<float> centroid_2 = plane_centroids[b];
-  vector<float> centroid3d;
-  for(int i=0;i<centroid_2.size();++i){
-    centroid3d.push_back((centroid_1[i] + centroid_2[i])/2);
   }
-  for(int i=0;i<centroid3d.size();++i){
-    std::cout << "centroid3d : " << centroid3d[i] << " ";
-  }std::cout << "\n";
+    cout << "z: " << sum << endl;
+    cout << "x: " << x << endl;
 
-  double x_3d = centroid3d[0];
-  double y_3d = centroid3d[1];
-  double z_3d = centroid3d[2];
+  // z_3d = z / x;
+  z_3d = 0.75;
+  // z_3d/=1000;
+//   double z_3d = 0.75; // get value
+  double x_3d = ((centroidx - c_x) / f_x) * z_3d;
+  double y_3d = ((centroidy - c_y) / f_y) * z_3d;
+  // cout << myMAtMean << endl;
 
+  // double start_x_3d = ((start_point2_x - c_x) / f_x) * z;
+  // double start_y_3d = ((start_point2_y - c_y) / f_y) * z;
+  // double end_x_3d = ((end_point2_x - c_x) / f_x) * z;
+  // double end_y_3d = ((end_point2_y - c_y) / f_y) * z;
   res.x_reply = x_3d;
   res.y_reply = y_3d;
   res.z_reply = z_3d;
@@ -346,7 +317,7 @@ int main(int argc, char** argv)
   ros::init(argc, argv, "vision_node");
   ROS_INFO("Intialized node");  
   ros::NodeHandle nh;
-  ros::ServiceServer service = nh.advertiseService("centroid_calc", service_callback);
+  ros::ServiceServer service = nh.advertiseService("picking_centroid_calc", service_callback);
 
 
 //   ros::NodeHandle nh;

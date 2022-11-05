@@ -22,25 +22,30 @@ def callback(msg):
     left_range = left_range[np.where((left_range >= msg.range_min) & (left_range<= msg.range_max))]
     left_window_means = []
 
+    if(left_range.shape[0] > window_size):
+
     # bp()
-    for i in range(0,left_range.shape[0]-window_size,window_size):
-        window = left_range[i:i+window_size]
-        left_window_means.append(np.mean(window))
+        for i in range(0,left_range.shape[0]-window_size,window_size):
+            window = left_range[i:i+window_size]
+            left_window_means.append(np.mean(window))
 
-    left_window_min = min(left_window_means)
+        left_window_min = min(left_window_means)
 
-    print("left", left_window_min)
+        print("left", left_window_min)
 
-    if(msg.range_min <= left_window_min and left_window_min <= 0.3):
-        l = "too close"
-    
-    elif(left_window_min > 0.3 and left_window_min <= 0.5):
-        l = "close"
+        if(msg.range_min <= left_window_min and left_window_min <= 0.4):
+            l = "too close"
+        
+        elif(left_window_min > 0.4 and left_window_min <= 0.6):
+            l = "close"
+
+        else:
+            l = "ok"
+
+        obstacle.left = l
 
     else:
-        l = "ok"
-
-    obstacle.left = l
+        obstacle.left = "ok"
 
     # backward
     backward_range = list(msg.ranges[3*n//8 : 5*n//8])
@@ -50,25 +55,29 @@ def callback(msg):
 
     backward_window_means = []
 
-    for i in range(0,backward_range.shape[0]-window_size,window_size):
-        window = backward_range[i:i+window_size]
-        backward_window_means.append(np.mean(window))
+    if(backward_range.shape[0] > window_size):
 
-    backward_window_min = min(backward_window_means)
+        for i in range(0,backward_range.shape[0]-window_size,window_size):
+            window = backward_range[i:i+window_size]
+            backward_window_means.append(np.mean(window))
 
-    print("backward", backward_window_min)
-    
-    if(msg.range_min <= backward_window_min and backward_window_min <= 0.35):
-        b = "too close"
-    
-    elif(backward_window_min > 0.35 and backward_window_min <= 0.6):
-        b = "close"
+        backward_window_min = min(backward_window_means)
+
+        print("backward", backward_window_min)
+        
+        if(msg.range_min <= backward_window_min and backward_window_min <= 0.35):
+            b = "too close"
+        
+        elif(backward_window_min > 0.35 and backward_window_min <= 0.6):
+            b = "close"
+
+        else:
+            b = "ok"
+
+        obstacle.backward = b
 
     else:
-        b = "ok"
-
-    obstacle.backward = b
-
+        obstacle.backward = "ok"
 
     # right
     right_range = list(msg.ranges[5*n//8 : 7*n//8])
@@ -78,24 +87,28 @@ def callback(msg):
 
     right_window_means = []
 
-    for i in range(0,right_range.shape[0]-window_size,window_size):
-        window = right_range[i:i+window_size]
-        right_window_means.append(np.mean(window))
+    if(right_range.shape[0] > window_size):
 
-    right_window_min = min(right_window_means)
+        for i in range(0,right_range.shape[0]-window_size,window_size):
+            window = right_range[i:i+window_size]
+            right_window_means.append(np.mean(window))
 
-    print("right", right_window_min)
+        right_window_min = min(right_window_means)
 
-    if(msg.range_min <= right_window_min and right_window_min <= 0.3):
-        r = "too close"
-    
-    elif(right_window_min > 0.3 and right_window_min <= 0.5):
-        r = "close"
+        print("right", right_window_min)
 
+        if(msg.range_min <= right_window_min and right_window_min <= 0.4):
+            r = "too close"
+        
+        elif(right_window_min > 0.4 and right_window_min <= 0.6):
+            r = "close"
+
+        else:
+            r = "ok"
+
+        obstacle.right = r
     else:
-        r = "ok"
-
-    obstacle.right = r
+        obstacle.right = "ok"
 
     # forward
     forward_range = list(msg.ranges[7*n//8 : n])
@@ -106,26 +119,31 @@ def callback(msg):
     
     forward_window_means = []
 
-    for i in range(0,forward_range.shape[0]-window_size,window_size):
-        window = forward_range[i:i+window_size]
-        forward_window_means.append(np.mean(window))
+    if(forward_range.shape[0] > window_size):
 
-    forward_window_min = min(forward_window_means)
+        for i in range(0,forward_range.shape[0]-window_size,window_size):
+            window = forward_range[i:i+window_size]
+            forward_window_means.append(np.mean(window))
 
-    print("forward", forward_window_min)
+        forward_window_min = min(forward_window_means)
 
-    if(msg.range_min <= forward_window_min and forward_window_min <= 0.3):
-        f = "too close"
+        print("forward", forward_window_min)
 
-    elif(forward_window_min > 0.3 and forward_window_min <= 0.5):
-        f = "close"
+        if(msg.range_min <= forward_window_min and forward_window_min <= 0.4):
+            f = "too close"
 
+        elif(forward_window_min > 0.4 and forward_window_min <= 0.6):
+            f = "close"
+
+        else:
+            f = "ok"
+
+        obstacle.forward = f
     else:
-        f = "ok"
-
-    obstacle.forward = f
+        obstacle.forward = "ok"
 
     pub.publish(obstacle)
+
 
 def listener():
     rospy.init_node('obstacle_alert', anonymous=True)

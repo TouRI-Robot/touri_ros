@@ -16,6 +16,8 @@ find_package(catkin REQUIRED COMPONENTS
   message_generation
   pcl_conversions pcl_ros
   OpenCV
+  cv_bridge
+  image_transport
 )
 
 ## System dependencies are found with CMake's conventions
@@ -63,7 +65,10 @@ add_service_files(
   FILES
   transform_service.srv
   perception.srv
+  perception_shipping.srv
+  perception_picking.srv
   centroid_calc.srv
+  picking_centroid_calc.srv
   # Service2.srv
 )
 
@@ -134,8 +139,11 @@ link_directories(${PCL_LIBRARY_DIRS})
 add_definitions(${PCL_DEFINITIONS})
 # add_executable(cloud_trial src/cloud_sub.cpp)
 add_executable(centroid_service src/centroid_calc.cpp)
+add_executable(picking_centroid_service src/picking_centroid_calc.cpp)
+
 # target_link_libraries(cloud_trial ${catkin_LIBRARIES} ${PCL_LIBRARIES})
 target_link_libraries(centroid_service ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${OpenCV_LIBRARIES})
+target_link_libraries(picking_centroid_service ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${OpenCV_LIBRARIES})
 
 ## Declare a C++ library
 # add_library(${PROJECT_NAME}
