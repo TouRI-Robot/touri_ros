@@ -121,26 +121,26 @@ class GraspObjectNode(hm.HelloNode):
                 self.goal_z = resp1.z_reply
                 break
             
-            rospy.loginfo("Value:"+str(flag))
-            rospy.loginfo("Rotating clockwise : "+str(i*20)+"by 20 degrees")
-            # rot_angle = np.deg2rad(-20) * i
-            pose = {'joint_head_pan': np.deg2rad(-20) * i}
-            i=i+1
-            if i>9:
-                # print("i : ",i)
-                rospy.loginfo("Rotating clockwise : "+str((i-9)*20)+"by 10 degrees")
-                pose = {'joint_head_pan': np.deg2rad(20) * (i-9)}
-            rospy.loginfo(pose)
+            # rospy.loginfo("Value:"+str(flag))
+            # rospy.loginfo("Rotating clockwise : "+str(i*20)+"by 20 degrees")
+            # # rot_angle = np.deg2rad(-20) * i
+            # pose = {'joint_head_pan': np.deg2rad(-20) * i}
+            # i=i+1
+            # if i>9:
+            #     # print("i : ",i)
+            #     rospy.loginfo("Rotating clockwise : "+str((i-9)*20)+"by 10 degrees")
+            #     pose = {'joint_head_pan': np.deg2rad(20) * (i-9)}
+            # rospy.loginfo(pose)
             
-            if(i>13):
-                # print("i : ",i)
-                rospy.loginfo("Couldn't detect object")
-                pose = {'joint_head_pan': 0}
-                self.move_to_pose(pose)
-                return
-            self.move_to_pose(pose)
-            rospy.loginfo("Done moving")
-            time.sleep(3)
+            # if(i>13):
+            #     # print("i : ",i)
+            #     rospy.loginfo("Couldn't detect object")
+            #     pose = {'joint_head_pan': 0}
+            #     self.move_to_pose(pose)
+            #     return
+            # self.move_to_pose(pose)
+            # rospy.loginfo("Done moving")
+            # time.sleep(3)
 
         open = 0.15283721447
         close=-0.37
@@ -157,7 +157,8 @@ class GraspObjectNode(hm.HelloNode):
                 # Step 3 - Translate
                 {'translate_mobile_base': self.goal_x - 0.6},
                 # Step 4
-                {'joint_lift': self.goal_z + 0.03},
+                # {'joint_lift': self.goal_z + 0.03},
+                {'joint_lift': self.goal_z},
                 # Step 5
                 {'rotate_mobile_base': 1.57},
                 # Step 6
@@ -170,7 +171,7 @@ class GraspObjectNode(hm.HelloNode):
                 # Step 9
                 {'joint_gripper_finger_left':close},
                 # Step 10
-                {'joint_lift':0.8},
+                {'joint_lift':0.95},
                 # Step 11
                 {'wrist_extension':0},
                 # Step 12
@@ -235,7 +236,7 @@ class GraspObjectNode(hm.HelloNode):
                 self.goal_x = resp1.x_reply
                 self.goal_y = resp1.y_reply
                 self.goal_z = resp1.z_reply
-                poses[i] = {'joint_lift': self.goal_z + 0.03}
+                poses[i] = {'joint_lift': self.goal_z}
                 time_sleep = 4
             if (i==5 or i==6):
                 time_sleep = 3

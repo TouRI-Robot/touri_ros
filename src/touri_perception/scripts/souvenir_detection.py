@@ -9,28 +9,28 @@ __copyright__ = "NONE"
 import rospy
 import message_filters
 from sensor_msgs.msg import Image, CameraInfo, PointCloud2
-import torch, torchvision
-import detectron2
+# import torch, torchvision
+# import detectron2
 import numpy as np
 import cv2
 import open3d as o3d
 import random
-from detectron2 import model_zoo
-from detectron2.engine import DefaultPredictor
-from detectron2.config import get_cfg
-from detectron2.utils.visualizer import Visualizer
-from detectron2.data import MetadataCatalog
-from detectron2.data.catalog import DatasetCatalog
-from detectron2.data.datasets import register_coco_instances
+# from detectron2 import model_zoo
+# from detectron2.engine import DefaultPredictor
+# from detectron2.config import get_cfg
+# from detectron2.utils.visualizer import Visualizer
+# from detectron2.data import MetadataCatalog
+# from detectron2.data.catalog import DatasetCatalog
+# from detectron2.data.datasets import register_coco_instances
 import random
-from detectron2.utils.visualizer import Visualizer
-from detectron2.engine import DefaultTrainer
-import torch
-torch.cuda.empty_cache()
-from detectron2.config import get_cfg
-from detectron2.evaluation.coco_evaluation import COCOEvaluator
+# from detectron2.utils.visualizer import Visualizer
+# from detectron2.engine import DefaultTrainer
+# import torch
+# torch.cuda.empty_cache()
+# from detectron2.config import get_cfg
+# from detectron2.evaluation.coco_evaluation import COCOEvaluator
 import os
-from detectron2.utils.logger import setup_logger
+# from detectron2.utils.logger import setup_logger
 from cv_bridge import CvBridge
 import sensor_msgs.point_cloud2 as pc2
 from ctypes import * # convert float to uint32
@@ -39,69 +39,77 @@ from geometry_msgs.msg import PointStamped, Pose, Quaternion, Twist, Vector3
 from std_srvs.srv import Trigger, TriggerRequest
 import sys
 from std_msgs.msg import String, Bool
-from touri_perception.srv import perception,perceptionResponse
+from touri_perception.srv import perception_picking,perception_pickingResponse
 from touri_perception.srv import picking_centroid_calc
+
+import socket
+import sys
+import cv2
+import pickle
+import numpy as np
+import struct ## new
+import zlib
 
 # -----------------------------------------------------------------------------
 
 bridge = CvBridge()
-setup_logger()
+# setup_logger()
 
-class CocoTrainer(DefaultTrainer):
-  @classmethod
-  def build_evaluator(cls, cfg, dataset_name, output_folder=None):
-    if output_folder is None:
-        os.makedirs("coco_eval", exist_ok=True)
-        output_folder = "coco_eval"
-    return COCOEvaluator(dataset_name, cfg, False, output_folder)
+# class CocoTrainer(DefaultTrainer):
+#   @classmethod
+#   def build_evaluator(cls, cfg, dataset_name, output_folder=None):
+#     if output_folder is None:
+#         os.makedirs("coco_eval", exist_ok=True)
+#         output_folder = "coco_eval"
+#     return COCOEvaluator(dataset_name, cfg, False, output_folder)
 
-cfg = get_cfg()
-cfg.merge_from_file(model_zoo.get_config_file("COCO-Detection/faster_rcnn_X_101_32x8d_FPN_3x.yaml"))
+# cfg = get_cfg()
+# cfg.merge_from_file(model_zoo.get_config_file("COCO-Detection/faster_rcnn_X_101_32x8d_FPN_3x.yaml"))
 
-#TODO: ADD OBJECTS DATASET
-cfg.DATASETS.TRAIN = ("picking_train_dataset",)
-cfg.DATASETS.TEST = ()
+# #TODO: ADD OBJECTS DATASET
+# cfg.DATASETS.TRAIN = ("picking_train_dataset",)
+# cfg.DATASETS.TEST = ()
 
-cfg.DATALOADER.NUM_WORKERS = 1
-cfg.MODEL.WEIGHTS = model_zoo.get_checkpoint_url("COCO-Detection/faster_rcnn_X_101_32x8d_FPN_3x.yaml")  # Let training initialize from model zoo
-cfg.SOLVER.IMS_PER_BATCH = 1
-cfg.SOLVER.BASE_LR = 0.001
+# cfg.DATALOADER.NUM_WORKERS = 1
+# cfg.MODEL.WEIGHTS = model_zoo.get_checkpoint_url("COCO-Detection/faster_rcnn_X_101_32x8d_FPN_3x.yaml")  # Let training initialize from model zoo
+# cfg.SOLVER.IMS_PER_BATCH = 1
+# cfg.SOLVER.BASE_LR = 0.001
 
 
-cfg.SOLVER.WARMUP_ITERS = 1000
-cfg.SOLVER.MAX_ITER = 1000 #adjust up if val mAP is still rising, adjust down if overfit
-cfg.SOLVER.STEPS = [] #(1000, 1500)
-cfg.SOLVER.GAMMA = 0.05
+# cfg.SOLVER.WARMUP_ITERS = 1000
+# cfg.SOLVER.MAX_ITER = 1000 #adjust up if val mAP is still rising, adjust down if overfit
+# cfg.SOLVER.STEPS = [] #(1000, 1500)
+# cfg.SOLVER.GAMMA = 0.05
 
-cfg.OUTPUT_DIR = "/home/hello-robot/trial/catkin_ws/src/stretch_ros/touri_ros/src/touri_perception/output_picking_dataset"
+# cfg.OUTPUT_DIR = "/home/hello-robot/trial/catkin_ws/src/stretch_ros/touri_ros/src/touri_perception/output_picking_dataset"
 
-cfg.MODEL.ROI_HEADS.BATCH_SIZE_PER_IMAGE = 64
-cfg.MODEL.ROI_HEADS.NUM_CLASSES = 5 #your number of classes + 1
-cfg.TEST.EVAL_PERIOD = 500
+# cfg.MODEL.ROI_HEADS.BATCH_SIZE_PER_IMAGE = 64
+# cfg.MODEL.ROI_HEADS.NUM_CLASSES = 5 #your number of classes + 1
+# cfg.TEST.EVAL_PERIOD = 500
 
-os.makedirs(cfg.OUTPUT_DIR, exist_ok=True)
-# trainer = CocoTrainer(cfg)
-# trainer.resume_or_load(resume=False)
+# os.makedirs(cfg.OUTPUT_DIR, exist_ok=True)
+# # trainer = CocoTrainer(cfg)
+# # trainer.resume_or_load(resume=False)
 
-print("starting to train")
-# trainer.train()
+# print("starting to train")
+# # trainer.train()
 
-from detectron2.data import DatasetCatalog, MetadataCatalog, build_detection_test_loader
-from detectron2.evaluation import COCOEvaluator, inference_on_dataset
+# from detectron2.data import DatasetCatalog, MetadataCatalog, build_detection_test_loader
+# from detectron2.evaluation import COCOEvaluator, inference_on_dataset
 
-model_path = "/home/hello-robot/trial/catkin_ws/src/stretch_ros/touri_ros/src/touri_perception/output_picking_dataset/model_final.pth"
-cfg.MODEL.WEIGHTS = model_path
-cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.85
-cfg.MODEL.DEVICE = 'cpu'
-predictor = DefaultPredictor(cfg)
-
-# cfg.MODEL.WEIGHTS = "/home/hello-robot/trial/catkin_ws/src/stretch_ros/touri_ros/src/touri_perception/picking_objects/picking_objects/output_picking_objects/model_final.pth"
-# cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.7   # set the testing threshold for this model
+# model_path = "/home/hello-robot/trial/catkin_ws/src/stretch_ros/touri_ros/src/touri_perception/output_picking_dataset/model_final.pth"
+# cfg.MODEL.WEIGHTS = model_path
+# cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.85
+# cfg.MODEL.DEVICE = 'cpu'
 # predictor = DefaultPredictor(cfg)
-test_metadata = MetadataCatalog.get("picking_train_dataset")
 
-from detectron2.utils.visualizer import ColorMode
-import glob
+# # cfg.MODEL.WEIGHTS = "/home/hello-robot/trial/catkin_ws/src/stretch_ros/touri_ros/src/touri_perception/picking_objects/picking_objects/output_picking_objects/model_final.pth"
+# # cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.7   # set the testing threshold for this model
+# # predictor = DefaultPredictor(cfg)
+# test_metadata = MetadataCatalog.get("picking_train_dataset")
+
+# from detectron2.utils.visualizer import ColorMode
+# import glob
 
 print("==========================================================")
 
@@ -128,9 +136,9 @@ class final:
         self.depth_content = None
         self.pointcloud_content = None
         
-        self.image_server = rospy.Service('perception_service', perception, self.service_callback)
-        rospy.wait_for_service('centroid_calc')
-        self.centroid_client = rospy.ServiceProxy('centroid_calc', centroid_calc)
+        self.image_server = rospy.Service('perception_picking_service', perception_picking, self.service_callback)
+        rospy.wait_for_service('picking_centroid_calc')
+        self.centroid_client = rospy.ServiceProxy('picking_centroid_calc', picking_centroid_calc)
 
     def callback(self, depth_image, image, pointcloud):
         # print(" callabck")
@@ -148,33 +156,95 @@ class final:
 
         image = self.image_content
         depth_image = self.depth_content
-        pointcloud = self.pointcloud_content
-        print("Image : ",type(image))
+        # pointcloud = self.pointcloud_content
+        # print("Image : ",type(image))
         # Detectron2
         # image = bridge.imgmsg_to_cv2(image, "bgr8")
         # image = cv2.resize(image, (0,0), fx=0.5, fy=0.5) 
         # bp()
         # image = cv2.imread("/home/hello-robot/trial/catkin_ws/src/stretch_ros/touri_ros/src/touri_perception/picking_objects/picking_objects/picking_objects/train/labelled_images/raw_image_0.jpg")
-        outputs = predictor(image)
-        v = Visualizer(image[:, :, ::-1],
-                        metadata=test_metadata, 
-                        scale=0.8
-                        )
+        # outputs = predictor(image)
+        # v = Visualizer(image[:, :, ::-1],
+        #                 metadata=test_metadata, 
+        #                 scale=0.8
+        #                 )
 
-        out = v.draw_instance_predictions(outputs["instances"].to("cpu"))
-        # bp()
-        cv2.imwrite("image_written124.jpg",image)
-        # cv2.waitKey(1)
-        im = out.get_image()[:, :, ::-1]
+        # out = v.draw_instance_predictions(outputs["instances"].to("cpu"))
+        # # bp()
+        # cv2.imwrite("image_written124.jpg",image)
+        # # cv2.waitKey(1)
+        # im = out.get_image()[:, :, ::-1]
         # if outputs['instances'].get_fields()['pred_boxes'][0]<1:
         #     detected = False
 
+        client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        client_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        client_socket.connect(('172.26.246.68', 8485))
+        connection = client_socket.makefile('wb')
+        img_counter = 0
+        encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 90]
+        frame = image
+        result, frame = cv2.imencode('.jpg', frame, encode_param)
+        #  data = zlib.compress(pickle.dumps(frame, 0))
+        data = pickle.dumps(frame, 0)
+        size = len(data)
+        print("{}: {}".format(img_counter, size))
+        client_socket.sendall(struct.pack(">L", size) + data)
+            # img_counter += 1
+
+        # cam.release()
+        # connection.close()
+
+        HOST=''
+        PORT=8485
+        s=socket.socket(socket.AF_INET,socket.SOCK_STREAM)
+        print('Socket created')
+        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        s.bind((HOST,PORT))
+        print('Socket bind complete')
+        s.listen(10)
+        print('Socket now listening')
+
+        conn,addr=s.accept()
+
+        data = b""
+        payload_size = struct.calcsize(">L")
+        print("payload_size: {}".format(payload_size))
+
+        while len(data) < payload_size:
+            print("Recv: {}".format(len(data)))
+            data += conn.recv(4096)
+
+        print("Done Recv: {}".format(len(data)))
+        packed_msg_size = data[:payload_size]
+        data = data[payload_size:]
+        msg_size = struct.unpack(">L", packed_msg_size)[0]
+        print("msg_size: {}".format(msg_size))
+        while len(data) < msg_size:
+            data += conn.recv(4096)
+        frame_data = data[:msg_size]
+        data = data[msg_size:]
+
+        frame = pickle.loads(frame_data, fix_imports=True, encoding="bytes")
+
+        print("received frame",frame)
+        outputs = frame
+        print("received frame",outputs)
+        preds = outputs[0]
+        scores = outputs[1]
+        classes = outputs[2]
+
         try:
             # bp()
-            x_start = int(outputs['instances'].get_fields()['pred_boxes'].tensor[0][0])
-            y_start = int(outputs['instances'].get_fields()['pred_boxes'].tensor[0][1])
-            x_end = int(outputs['instances'].get_fields()['pred_boxes'].tensor[0][2])
-            y_end = int(outputs['instances'].get_fields()['pred_boxes'].tensor[0][3])
+            # x_start = int(outputs['instances'].get_fields()['pred_boxes'].tensor[0][0])
+            # y_start = int(outputs['instances'].get_fields()['pred_boxes'].tensor[0][1])
+            # x_end = int(outputs['instances'].get_fields()['pred_boxes'].tensor[0][2])
+            # y_end = int(outputs['instances'].get_fields()['pred_boxes'].tensor[0][3])
+            x_start = int(preds[0][0])
+            y_start = int(preds[0][1])
+            x_end = int(preds[0][2])
+            y_end = int(preds[0][3])
+            detected = True
              
             resp_centroid = self.centroid_client(x_start, y_start,x_end,y_end)
             x_3d = resp_centroid.x_reply
@@ -250,10 +320,11 @@ class final:
                 # self.image_pub.publish(self.br.cv2_to_imgmsg(image))
                 # self.depth_pub.publish(self.br.cv2_to_imgmsg(depth_data))
                 detected = True
+                print("PRINTING CNETROID IN BASE")
                 print(x_base, y_base, z_base)
 
                 souvenir_position.append((x_base, y_base, z_base))
-                return perceptionResponse(detected,x_base,y_base,z_base)
+                return perception_pickingResponse(detected,x_base,y_base,z_base)
 
                 
             else:
@@ -261,7 +332,7 @@ class final:
         except IndexError:
             print("not detected")
             detected = False
-            return perceptionResponse(detected,-1,-1,-1)
+            return perception_pickingResponse(detected,-1,-1,-1)
             
         
 

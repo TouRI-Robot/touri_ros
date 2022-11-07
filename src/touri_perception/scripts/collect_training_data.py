@@ -5,13 +5,8 @@ import json
 import time
 import os
 
-ctx = rs.context()
-devices = ctx.query_devices()
-for dev in devices:
-    dev.hardware_reset()
-
 class COLLECT_TRAINING_DATA(object):
-    def __init__(self, num_objects, dataset_directory):
+    def __init__(self, labels, num_objects, dataset_directory):
         self.setup_camera()
         self.num_objects = num_objects
         self.dataset_directory = dataset_directory
@@ -26,7 +21,8 @@ class COLLECT_TRAINING_DATA(object):
         # Create directories
         self.original_images_dir = os.path.join(self.dataset_directory, "train", "original_images")
         self.labelled_images_dir = os.path.join(self.dataset_directory, "train", "labelled_images")
-        
+        self.label_names = labels
+
         if not os.path.exists(self.original_images_dir):
             os.makedirs(self.original_images_dir)
         if not os.path.exists(self.labelled_images_dir):
@@ -79,7 +75,7 @@ class COLLECT_TRAINING_DATA(object):
         save_frame_num = 0
         try:
             while True:
-                time.sleep(0.1)
+                time.sleep(0.2)
                 frames = self.pipeline.wait_for_frames()
                 color_frame = frames.get_color_frame()
                 frame = np.asanyarray(color_frame.get_data())
@@ -93,7 +89,7 @@ class COLLECT_TRAINING_DATA(object):
                     for i in range(self.num_objects):
                         p1 = (int(self.bboxes[i][0]), int(self.bboxes[i][1]))
                         p2 = (int(self.bboxes[i][0] + self.bboxes[i][2]), int(self.bboxes[i][1] + self.bboxes[i][3]))
-                        label[i] = (p1,p2)
+                        label[self.label_names[i]] = (p1,p2)
                         colour = list(self.colours[i])
                         colour = list(map(int,colour))
                         # import pdb; pdb.set_trace();
@@ -104,16 +100,15 @@ class COLLECT_TRAINING_DATA(object):
                 cv2.putText(frame, "FPS : " + str(int(fps)), (100,50), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (50,170,50), 2);
                 cv2.imshow("Tracking", frame)
 
-
                 frame_num += 1
                 if (frame_num%3==0):
                     original_image_path = os.path.join(self.original_images_dir, f"raw_image_{save_frame_num}.jpg")
                     labelled_image_path = os.path.join(self.labelled_images_dir, f"raw_image_{save_frame_num}.jpg")
                     cv2.imwrite(original_image_path,original_image)
                     cv2.imwrite(labelled_image_path,frame)
-                    print("Saving image", labelled_image_path)
                     self.labels[f'raw_image_{save_frame_num}.jpg'] = label
                     save_frame_num += 1
+                    print("Saving image : ",save_frame_num)
 
                 cv2.namedWindow('RealSense', cv2.WINDOW_AUTOSIZE)
                 cv2.imshow('RealSense', self.color_image)
@@ -131,12 +126,25 @@ class COLLECT_TRAINING_DATA(object):
         # Stop streaming
         self.pipeline.stop()
         
+# id=0,  name='cmu_tartan_bottle'
+# id=1,  name='all_start_dogs_belt_with_ball'
+# id=2,  name='cmu_cup'
+# id=3,  name='cmu_bottle'
+# id=4,  name='monkey_keychain'
+# id=5,  name='transparent_bottle'
+# id=6,  name='all_star_dogs_belt'
+# id=7,  name='table_tennis_balls'
+# id=8,  name='dog_keychain'
+# id=9,  name='binnie'
+# id=10, name='unicorn'
+# id=11, name='airpods_case'
 
 if __name__ == '__main__':
-    num_objects = 4
-    dataset_directory = os.path.join("picking_objects_dataset_1")
-    print("dataset_directory : ",dataset_directory)
-    train_data_collector = COLLECT_TRAINING_DATA(num_objects, dataset_directory)
+    num_objects = 3
+    labels = [9, 10, 11]
+    dataset_directory = os.path.join("/home/hello-robot/trial/catkin_ws/src/stretch_ros/touri_ros/src/touri_perception/dataset/souvenir_dataset",\
+                                        "souvenir_train_dataset8")
+    train_data_collector = COLLECT_TRAINING_DATA(labels, num_objects, dataset_directory)
     train_data_collector.capture_initial_labels()
     train_data_collector.start_labelling()
     train_data_collector.save_labels()

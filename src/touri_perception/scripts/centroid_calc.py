@@ -53,11 +53,6 @@ class image_converter:
   def service_callback(self,req):
     try:
       print("service callabck")
-    #   image = cv2.rotate(self.image_content, cv2.cv2.ROTATE_90_CLOCKWISE)
-    #   image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-    #   image.flags.writeable = False
-    #   image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-    #   results = objectron.process(image)
     image = cv2.imread("/home/shivani0812/Desktop/scripts/camera_image.jpeg")
     window_name = 'Image'
     start_point1 = (619,186)
@@ -80,10 +75,7 @@ class image_converter:
     image = cv2.rectangle(image, start_point2, end_point2, color2, thickness)
 
     # Displaying the image 
-    # cv2.imshow(window_name, image)
-    # cv2.waitKey(0)
-    # cv2.destroyAllWindows() 
-
+    
     # intrinsic matrix
     camera_matrix = np.array([[910.7079467773438, 0.0, 634.5316772460938], [0.0, 910.6213989257812, 355.40097045898], [0.0, 0.0, 1.0]])
 

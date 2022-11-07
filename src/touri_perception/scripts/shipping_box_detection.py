@@ -1,135 +1,37 @@
 #!/usr/bin/env python3
-
+# ROS Imports 
 import rospy
 import message_filters
 from sensor_msgs.msg import Image, CameraInfo, PointCloud2
-import torch, torchvision
-import detectron2
 import numpy as np
 import cv2
 import open3d as o3d
 import random
-from detectron2 import model_zoo
-from detectron2.engine import DefaultPredictor
-from detectron2.config import get_cfg
-from detectron2.utils.visualizer import Visualizer
-from detectron2.data import MetadataCatalog
-from detectron2.data.catalog import DatasetCatalog
-from detectron2.data.datasets import register_coco_instances
-import random
-from detectron2.utils.visualizer import Visualizer
-from detectron2.engine import DefaultTrainer
-import torch
-torch.cuda.empty_cache()
-from detectron2.config import get_cfg
-from detectron2.evaluation.coco_evaluation import COCOEvaluator
 import os
-from detectron2.utils.logger import setup_logger
 from cv_bridge import CvBridge
 import sensor_msgs.point_cloud2 as pc2
 from ctypes import * # convert float to uint32
+
+import sys
+from std_msgs.msg import String, Bool
 from touri_perception.srv import transform_service,transform_serviceResponse
 from geometry_msgs.msg import PointStamped, Pose, Quaternion, Twist, Vector3
 from std_srvs.srv import Trigger, TriggerRequest
+from touri_perception.srv import perception_shipping,perception_shippingResponse, centroid_calc
+
+# Socket Imports
+import socket
 import sys
-from std_msgs.msg import String, Bool
-from touri_perception.srv import perception,perceptionResponse
-from touri_perception.srv import centroid_calc
+import cv2
+import pickle
+import numpy as np
+import struct ## new
+import zlib
 
-
+from pdb import set_trace as bp
 
 bridge = CvBridge()
-setup_logger()
 
-class CocoTrainer(DefaultTrainer):
-  @classmethod
-  def build_evaluator(cls, cfg, dataset_name, output_folder=None):
-    if output_folder is None:
-        os.makedirs("coco_eval", exist_ok=True)
-        output_folder = "coco_eval"
-    return COCOEvaluator(dataset_name, cfg, False, output_folder)
-
-cfg = get_cfg()
-cfg.merge_from_file(model_zoo.get_config_file("COCO-Detection/faster_rcnn_X_101_32x8d_FPN_3x.yaml"))
-cfg.DATASETS.TRAIN = ("dropbox_train_dataset",)
-cfg.DATASETS.TEST = ()
-
-cfg.DATALOADER.NUM_WORKERS = 1
-cfg.MODEL.WEIGHTS = model_zoo.get_checkpoint_url("COCO-Detection/faster_rcnn_X_101_32x8d_FPN_3x.yaml")  # Let training initialize from model zoo
-cfg.SOLVER.IMS_PER_BATCH = 1
-cfg.SOLVER.BASE_LR = 0.001
-
-
-cfg.SOLVER.WARMUP_ITERS = 1000
-cfg.SOLVER.MAX_ITER = 1000 #adjust up if val mAP is still rising, adjust down if overfit
-cfg.SOLVER.STEPS = [] #(1000, 1500)
-cfg.SOLVER.GAMMA = 0.05
-
-
-cfg.MODEL.ROI_HEADS.BATCH_SIZE_PER_IMAGE = 64
-cfg.MODEL.ROI_HEADS.NUM_CLASSES = 2 #your number of classes + 1
-cfg.TEST.EVAL_PERIOD = 500
-
-os.makedirs(cfg.OUTPUT_DIR, exist_ok=True)
-# trainer = CocoTrainer(cfg)
-# trainer.resume_or_load(resume=False)
-
-print("starting to train")
-# trainer.train()
-
-from detectron2.data import DatasetCatalog, MetadataCatalog, build_detection_test_loader
-from detectron2.evaluation import COCOEvaluator, inference_on_dataset
-
-cfg.MODEL.WEIGHTS = "/home/hello-robot/catkin_ws/src/stretch_ros/touri_ros/src/touri_perception/inference/output/model_final.pth"
-cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.85
-
-cfg.MODEL.DEVICE = 'cpu'
-predictor = DefaultPredictor(cfg)
-
-cfg.MODEL.WEIGHTS = "/home/hello-robot/catkin_ws/src/stretch_ros/touri_ros/src/touri_perception/inference/output/model_final.pth"
-cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.7   # set the testing threshold for this model
-predictor = DefaultPredictor(cfg)
-test_metadata = MetadataCatalog.get("dropbox_train_dataset")
-
-from detectron2.utils.visualizer import ColorMode
-import glob
-
-# itr = 0
-
-#         im = color_image
-#         cv2.imshow('RealSense', image)
-#         cv2.waitKey(1)
-
-# finally:
-
-#     # Stop streaming
-#     pipeline.stop()
-
-# import time
-# for imageName in sorted(glob.glob('/home/hello-robot/catkin_ws/src/stretch_ros/touri_ros/src/touri_perception/dataset/drop_box_dataset/train/original_images/*jpg')):
-#   st = time.time()
-
-#   im = cv2.imread(imageName)
-#   outputs = predictor(im)
-#   v = Visualizer(im[:, :, ::-1],
-#                 metadata=test_metadata, 
-#                 scale=0.8
-#                  )
-#   out = v.draw_instance_predictions(outputs["instances"].to("cpu"))
-#   image = out.get_image()[:, :, ::-1]
-#   height, width, layers = image.shape
-#   size = (width,height)
-#   print("Size : ",size)
-#   # image = cv2.rotate(src, cv2.cv2.ROTATE_90_CLOCKWISE)
-#   # cv2.imwrite(f"image_{itr}.jpg",image)
-#   itr += 1
-#   print(time.time() - st)
-#   # output_video.write(image)
-#   cv2.imshow("image",image)
-#   cv2.waitKey(1)
-
-# output_video.release()
-from pdb import set_trace as bp
 
 convert_rgbUint32_to_tuple = lambda rgb_uint32: (
     (rgb_uint32 & 0x00ff0000)>>16, (rgb_uint32 & 0x0000ff00)>>8, \
@@ -146,7 +48,6 @@ class final:
         # self.flag_pub= rospy.Publisher("/flag",Bool, queue_size=10)
         # self.pose_pub = rospy.Publisher('/detected_point', PointStamped, queue_size=10)
 
-
         depth_sub = message_filters.Subscriber("/camera/aligned_depth_to_color/image_raw", Image)
         image_sub = message_filters.Subscriber("/camera/color/image_raw", Image)
         cloud_sub = message_filters.Subscriber("/camera/depth/color/points", PointCloud2)
@@ -160,14 +61,11 @@ class final:
 
         # self.pose_pub = rospy.Publisher('/detected_point', PointStamped, queue_size=10)
         # self.flag = False
-        self.image_server = rospy.Service('perception_service', perception, self.service_callback)
+        self.image_server = rospy.Service('perception_shipping_service', perception_shipping, self.service_callback)
         
         rospy.wait_for_service('centroid_calc')
         self.centroid_client = rospy.ServiceProxy('centroid_calc', centroid_calc)
             
-
-
-
     def callback(self, depth_image, image, pointcloud):
         # print(" callabck")
 
@@ -181,18 +79,81 @@ class final:
         image = self.image_content
         depth_image = self.depth_content
         pointcloud = self.pointcloud_content
+
         print("Image : ",type(image))
         # Detectron2
         image = bridge.imgmsg_to_cv2(image, "bgr8")
-        # bp()
-        outputs = predictor(image)
-        v = Visualizer(image[:, :, ::-1],
-                        metadata=test_metadata, 
-                        scale=0.8
-                        )
+        
+        # Send image to PC
+        # outputs = predictor(image)
+        # Recieve outputs
+        client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        client_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        client_socket.connect(('172.26.246.68', 8486))
+        connection = client_socket.makefile('wb')
+        img_counter = 0
+        encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 90]
+        frame = image
+        result, frame = cv2.imencode('.jpg', frame, encode_param)
+        #  data = zlib.compress(pickle.dumps(frame, 0))
+        data = pickle.dumps(frame, 0)
+        size = len(data)
+        print("{}: {}".format(img_counter, size))
+        client_socket.sendall(struct.pack(">L", size) + data)
+            # img_counter += 1
+
+        # cam.release()
+        # connection.close()
+
+        HOST=''
+        PORT=8486
+        s=socket.socket(socket.AF_INET,socket.SOCK_STREAM)
+        print('Socket created')
+        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        s.bind((HOST,PORT))
+        print('Socket bind complete')
+        s.listen(10)
+        print('Socket now listening')
+
+        conn,addr=s.accept()
+
+        data = b""
+        payload_size = struct.calcsize(">L")
+        print("payload_size: {}".format(payload_size))
+
+        while len(data) < payload_size:
+            print("Recv: {}".format(len(data)))
+            data += conn.recv(4096)
+
+        print("Done Recv: {}".format(len(data)))
+        packed_msg_size = data[:payload_size]
+        data = data[payload_size:]
+        msg_size = struct.unpack(">L", packed_msg_size)[0]
+        print("msg_size: {}".format(msg_size))
+        while len(data) < msg_size:
+            data += conn.recv(4096)
+        frame_data = data[:msg_size]
+        data = data[msg_size:]
+
+        frame = pickle.loads(frame_data, fix_imports=True, encoding="bytes")
+
+        print("received frame",frame)
+        outputs = frame
+        print("received frame",outputs)
+        preds = outputs[0]
+        scores = outputs[1]
+        classes = outputs[2]
+
+        # v = Visualizer(image[:, :, ::-1],
+        #                 metadata=test_metadata, 
+        #                 scale=0.8
+        #                 )
         # print("Outputs : ",outputs)
-        out = v.draw_instance_predictions(outputs["instances"].to("cpu"))
-        im = out.get_image()[:, :, ::-1]
+        # out = v.draw_instance_predictions(outputs["instances"].to("cpu"))
+        # im = out.get_image()[:, :, ::-1]
+        
+        # Output from PC
+
         # detected = True
         # bp()
         # cv2.imshow('RealSense', im)
@@ -201,10 +162,10 @@ class final:
         # print("depth_image : ",type(depth_image))
         # bp()
         try:
-            x_start = int(outputs['instances'].get_fields()['pred_boxes'].tensor[0][0])
-            y_start = int(outputs['instances'].get_fields()['pred_boxes'].tensor[0][1])
-            x_end = int(outputs['instances'].get_fields()['pred_boxes'].tensor[0][2])
-            y_end = int(outputs['instances'].get_fields()['pred_boxes'].tensor[0][3])
+            x_start = int(preds[0][0])
+            y_start = int(preds[0][1])
+            x_end = int(preds[0][2])
+            y_end = int(preds[0][3])
             detected = True
             resp_centroid = self.centroid_client(x_start, y_start,x_end,y_end)
             x_3d = resp_centroid.x_reply
@@ -212,7 +173,6 @@ class final:
             z_3d = resp_centroid.z_reply
             width = resp_centroid.width
             print("printing values")
-
 
             # # 3D
             # print("starting 3D pipeline")
@@ -549,15 +509,12 @@ class final:
             # print(detected,x_base,y_base,z_base)
             print("called the service")
 
-            return perceptionResponse(detected,x_base,y_base,z_base)
-
+            return perception_shippingResponse(detected,x_base,y_base,z_base)
             # return resp1
-
-
             # return perceptionResponse(detected,x_base,y_base,z_base)
         except IndexError:
             detected = False
-            return perceptionResponse(detected,-1,-1,-1)
+            return perception_shippingResponse(detected,-1,-1,-1)
 
 
 def main(args):

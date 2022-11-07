@@ -6,10 +6,15 @@ from std_msgs.msg import String
 from touri_perception.msg import obj_det
 import numpy as np
 from pdb import set_trace as bp
+import time
+import firebase_admin
+from firebase_admin import credentials, db, storage
+from datetime import datetime
+import os
 
 
-pub = rospy.Publisher('obs_det', obj_det, queue_size = 10)
-obstacle = obj_det()
+# pub = rospy.Publisher('obs_det', obj_det, queue_size = 10)
+# obstacle = obj_det()
 
 def callback(msg):
 
@@ -34,18 +39,16 @@ def callback(msg):
         print("left", left_window_min)
 
         if(msg.range_min <= left_window_min and left_window_min <= 0.4):
-            l = "too close"
+            l = 2
         
         elif(left_window_min > 0.4 and left_window_min <= 0.6):
-            l = "close"
+            l = 1
 
         else:
-            l = "ok"
-
-        obstacle.left = l
+            l = 0
 
     else:
-        obstacle.left = "ok"
+        l = 0
 
     # backward
     backward_range = list(msg.ranges[3*n//8 : 5*n//8])
@@ -66,18 +69,16 @@ def callback(msg):
         print("backward", backward_window_min)
         
         if(msg.range_min <= backward_window_min and backward_window_min <= 0.35):
-            b = "too close"
+            b = 2
         
         elif(backward_window_min > 0.35 and backward_window_min <= 0.6):
-            b = "close"
+            b = 1
 
         else:
-            b = "ok"
-
-        obstacle.backward = b
+            b = 0
 
     else:
-        obstacle.backward = "ok"
+        b = 0
 
     # right
     right_range = list(msg.ranges[5*n//8 : 7*n//8])
@@ -98,17 +99,16 @@ def callback(msg):
         print("right", right_window_min)
 
         if(msg.range_min <= right_window_min and right_window_min <= 0.4):
-            r = "too close"
+            r = 2
         
         elif(right_window_min > 0.4 and right_window_min <= 0.6):
-            r = "close"
+            r = 1
 
         else:
-            r = "ok"
+            r = 0
 
-        obstacle.right = r
     else:
-        obstacle.right = "ok"
+        r = 0
 
     # forward
     forward_range = list(msg.ranges[7*n//8 : n])
@@ -130,19 +130,35 @@ def callback(msg):
         print("forward", forward_window_min)
 
         if(msg.range_min <= forward_window_min and forward_window_min <= 0.4):
-            f = "too close"
+            f = 2
 
         elif(forward_window_min > 0.4 and forward_window_min <= 0.6):
-            f = "close"
+            f = 1
 
         else:
-            f = "ok"
+            f = 0
 
-        obstacle.forward = f
     else:
-        obstacle.forward = "ok"
+        f = 0
 
-    pub.publish(obstacle)
+    updateProximity(f, b, l, r)
+
+def updateProximity(top, bottom, left, right):
+    '''
+    OKAY => 0
+    CLOSE => 1
+    VERY CLOSE => 2
+    '''
+    assert top in (0,1,2), "Front proximity can only take values of 0,1,2"
+    assert bottom in (0,1,2), "Front proximity can only take values of 0,1,2"
+    assert left in (0,1,2), "Front proximity can only take values of 0,1,2"
+    assert right in (0,1,2), "Front proximity can only take values of 0,1,2"
+    db.reference("state/navObjProximity").update({
+        "top" : top,
+        "bottom": bottom,
+        "left": left,
+        "right": right,
+    })
 
 
 def listener():
@@ -151,4 +167,9 @@ def listener():
     rospy.spin()
 
 if __name__ == '__main__':
+    cred = credentials.Certificate("keys/touri-65f07-firebase-adminsdk-wuv71-b245c875f8.json")
+    firebase_admin.initialize_app(cred, {
+        'databaseURL': 'https://touri-65f07-default-rtdb.firebaseio.com/',
+        'storageBucket' : 'touri-65f07.appspot.com' 
+        })
     listener()

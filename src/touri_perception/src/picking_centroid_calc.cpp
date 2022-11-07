@@ -183,45 +183,9 @@ vector<double> start_homo = {{start_point2_x, start_point2_y, 1.0}};
   }
 
 
-//   for(int i = 0; i < cv_ptr_depth.height; i++)
-//   {
-//     for (int j = 0; j < cv_ptr_depth.width; j++)
-//     {
-//         pix.val[0] = centroid_
-        
-//            }
-//   }
-//   sensor_msgs::Image depth_image;
-//   depth_image = *depth_;
-
-  //TODO: Figure out how to get the depth content 
-  // Z = depth_data[Y-10:Y+10, X-10:X+10]
-
-  ///////////////////////////////////////////
-
-//   auto depth_content = depth_image.data;
-//   int depth_size = depth_image.height * depth_image.width;
-
-//   auto Z = depth_content.set_data_vec()
-//   for(int i = 0; i < depth_size; i++)
-//   {
-//     auto Z.
-    
-
-//   }
-
-/////////////////////////////////////////////
-// for(int i = 0; i < depth_size; i++)
-// {
-//     if ((int)depth_image[i]!=0)
-//     {
-//     double z_3d = std::mean(depth_image[i]);
-//     }
-// }
-
   double z_3d = -1;
   cv::Mat depth_image = cv_ptr_depth->image;
-  int window_size = 40;
+  int window_size = 10;
   std::cout << "centroid y : " << centroidy << "\n";
   std::cout << "centroid x : " << centroidx << "\n";
   
@@ -252,9 +216,9 @@ vector<double> start_homo = {{start_point2_x, start_point2_y, 1.0}};
     {
         // std::cout << "Z.at<double>(j, i)  : " << Z.at<double>(j, i) << "\n";
             // z_3d+= depth_image.at<double>(i, j);
-        if (Z.at<double>(j, i) > 0) {
-          std::cout << "Z.at<double>(j, i)  : " << Z.at<double>(j, i) << "\n";
-          sum= sum + Z.at<double>(j, i);
+        if (Z.at<uint16_t>(j, i) > 0) {
+          std::cout << "Z.at<uint16_t>(j, i)  : " << Z.at<uint16_t>(j, i) << "\n";
+          sum= sum + Z.at<uint16_t>(j, i);
           x++;  
 
              
@@ -263,9 +227,10 @@ vector<double> start_homo = {{start_point2_x, start_point2_y, 1.0}};
   }
     cout << "z: " << sum << endl;
     cout << "x: " << x << endl;
-
-  // z_3d = z / x;
-  z_3d = 0.75;
+  
+  z_3d = sum / (1000 * x); // convert to meters
+  cout << "z3d: " << z_3d << endl;
+// z_3d = 0.75;
   // z_3d/=1000;
 //   double z_3d = 0.75; // get value
   double x_3d = ((centroidx - c_x) / f_x) * z_3d;
@@ -314,7 +279,7 @@ vector<double> start_homo = {{start_point2_x, start_point2_y, 1.0}};
 
 int main(int argc, char** argv)
 {
-  ros::init(argc, argv, "vision_node");
+  ros::init(argc, argv, "picking_vision_node");
   ROS_INFO("Intialized node");  
   ros::NodeHandle nh;
   ros::ServiceServer service = nh.advertiseService("picking_centroid_calc", service_callback);
