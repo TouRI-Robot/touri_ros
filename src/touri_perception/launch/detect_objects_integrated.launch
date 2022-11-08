@@ -1,0 +1,40 @@
+<launch>
+  <!-- REALSENSE D435i -->
+  <include file="$(find realsense2_camera)/launch/rs_camera.launch" >
+   <arg name="align_depth" value="true"/>
+   <arg name="enable_pointcloud" value="true"/>
+  </include>
+
+  <!-- SHIPPING BOX DETECTION -->
+  <node name="final_centroid_calc" pkg="touri_perception" type="shipping_box_detection.py" output="screen"/>
+
+  <!-- SOUVENIR DETECTION -->
+  <node name="souvenir_pose_estimator" pkg="touri_perception" type="souvenir_detection.py" output="screen"/>
+
+  <!-- PICKING SERVICE -->
+  <!-- <node name="picking_vision_node" pkg="touri_perception" type="picking_centroid_calc.cpp" output="screen"/> -->
+  <node pkg="touri_perception" name="picking_vision_node" type="picking_centroid_service" output="screen"/>
+
+  <!-- SHIPPING SERVICE -->
+  <!-- <node name="shipping_vision_node" pkg="touri_perception" type="centroid_calc.cpp" output="screen"/> -->
+  <node pkg="touri_perception" name="shipping_vision_node" type="centroid_service" output="screen"/>
+
+  <!-- STRETCH DRIVER -->
+  <arg name="debug_directory" value="$(env HELLO_FLEET_PATH)/debug/"/>
+  <include file="$(find stretch_core)/launch/stretch_driver.launch" /> 
+  
+  <!-- FRUSTUM FIELD OF VIEW VISUALIZATION -->	
+  <node name="d435i_frustum_visualizer" pkg="stretch_core" type="d435i_frustum_visualizer" output="screen" />
+
+  <!-- TRANSFORM SERVER -->
+  <node name="transform_server" pkg="touri_perception" type="transform_server.py" output="screen"/>
+
+  <!-- MANIPULATION PLACING -->
+  <node name="integrated_pipeline" pkg="touri_mani" type="integrated_pipeline.py" output="screen"/>
+
+  <!-- KEYBOARD TELEOP -->
+  <node name="keyboard_teleop" pkg="stretch_core" type="keyboard_teleop" output="screen"/>
+  
+  <!-- VISUALIZE DETECTION -->
+  <node name="rviz" pkg="rviz" type="rviz" args="-d $(find stretch_deep_perception)/rviz/object_detection.rviz" />
+</launch>

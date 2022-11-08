@@ -2,8 +2,8 @@
 """
 TouRI Robot Base Code
 """
-__author__    = "Shivani Sivakumar"
-__mail__      = "ssivaku3@andrew.cmu.edu"
+__author__    = "Jigarkumar Patel, Shivani Sivakumar"
+__mail__      = "jkpatel@andrew.cmu.edu, ssivaku3@andrew.cmu.edu"
 __copyright__ = "NONE"
 
 # from __future__ import print_function
@@ -34,7 +34,6 @@ class ManipulationNode(hm.HelloNode):
         self.rate = 10.0
         self.joint_states = None
         self.joint_states_lock = threading.Lock()
-        # self.move_base = nv.MoveBase(self)
         self.letter_height_m = 0.2
         self.wrist_position = None
         self.lift_position = None
@@ -65,27 +64,27 @@ class ManipulationNode(hm.HelloNode):
         rospy.loginfo('Move to the initial configuration for drawer opening.')
         self.move_to_pose(initial_pose)
 
-    def look_at_surface(self, scan_time_s=None):
-        self.manipulation_view = mp.ManipulationView(self.tf2_buffer, self.debug_directory)
-        manip = self.manipulation_view
-        head_settle_time_s = 0.02 #1.0
-        manip.move_head(self.move_to_pose)
-        rospy.sleep(head_settle_time_s)
-        if scan_time_s is None:
-            manip.update(self.point_cloud, self.tf2_buffer)
-        else:
-            start_time_s = time.time()
-            while ((time.time() - start_time_s) < scan_time_s): 
-                manip.update(self.point_cloud, self.tf2_buffer)
-        if self.debug_directory is not None:
-            dirname = self.debug_directory + 'grasp_object/'
-            # If the directory does not already exist, create it.
-            if not os.path.exists(dirname):
-                os.makedirs(dirname)
-            filename = 'look_at_surface_' + hm.create_time_string()
-            manip.save_scan(dirname + filename)
-        else:
-            rospy.loginfo('Manipulation Node: No debug directory provided, so debugging data will not be saved.')
+    # def look_at_surface(self, scan_time_s=None):
+    #     self.manipulation_view = mp.ManipulationView(self.tf2_buffer, self.debug_directory)
+    #     manip = self.manipulation_view
+    #     head_settle_time_s = 0.02 #1.0
+    #     manip.move_head(self.move_to_pose)
+    #     rospy.sleep(head_settle_time_s)
+    #     if scan_time_s is None:
+    #         manip.update(self.point_cloud, self.tf2_buffer)
+    #     else:
+    #         start_time_s = time.time()
+    #         while ((time.time() - start_time_s) < scan_time_s): 
+    #             manip.update(self.point_cloud, self.tf2_buffer)
+    #     if self.debug_directory is not None:
+    #         dirname = self.debug_directory + 'grasp_object/'
+    #         # If the directory does not already exist, create it.
+    #         if not os.path.exists(dirname):
+    #             os.makedirs(dirname)
+    #         filename = 'look_at_surface_' + hm.create_time_string()
+    #         manip.save_scan(dirname + filename)
+    #     else:
+    #         rospy.loginfo('Manipulation Node: No debug directory provided, so debugging data will not be saved.')
 
     def drive(self, forward_m):
         tolerance_distance_m = 0.005
@@ -96,10 +95,10 @@ class ManipulationNode(hm.HelloNode):
 
     def trigger_picking_pipeline_callback(self, request):
         rospy.loginfo("pick service called")
-        pose = {'joint_head_tilt':(np.deg2rad(-90))/3}
-        self.move_to_pose(pose)
+        # pose = {'joint_head_tilt':(np.deg2rad(-90))/3}
+        # self.move_to_pose(pose)
 
-        # Request centroid from picking service
+        # # Request centroid from picking service
         # rospy.wait_for_service('perception_picking_service')
         # try:
         #     perception_picking_client = rospy.ServiceProxy('perception_picking_service', perception_picking)
@@ -120,26 +119,26 @@ class ManipulationNode(hm.HelloNode):
         #         self.goal_z = resp1.z_reply
         #         break
             
-        #     # rospy.loginfo("Value:"+str(flag))
-        #     # rospy.loginfo("Rotating clockwise : "+str(i*20)+"by 20 degrees")
-        #     # # rot_angle = np.deg2rad(-20) * i
-        #     # pose = {'joint_head_pan': np.deg2rad(-20) * i}
-        #     # i=i+1
-        #     # if i>9:
-        #     #     # print("i : ",i)
-        #     #     rospy.loginfo("Rotating clockwise : "+str((i-9)*20)+"by 10 degrees")
-        #     #     pose = {'joint_head_pan': np.deg2rad(20) * (i-9)}
-        #     # rospy.loginfo(pose)
+        #     rospy.loginfo("Value:"+str(flag))
+        #     rospy.loginfo("Rotating clockwise : "+str(i*20)+"by 20 degrees")
+        #     # rot_angle = np.deg2rad(-20) * i
+        #     pose = {'joint_head_pan': np.deg2rad(-20) * i}
+        #     i=i+1
+        #     if i>9:
+        #         # print("i : ",i)
+        #         rospy.loginfo("Rotating clockwise : "+str((i-9)*20)+"by 10 degrees")
+        #         pose = {'joint_head_pan': np.deg2rad(20) * (i-9)}
+        #     rospy.loginfo(pose)
             
-        #     # if(i>13):
-        #     #     # print("i : ",i)
-        #     #     rospy.loginfo("Couldn't detect object")
-        #     #     pose = {'joint_head_pan': 0}
-        #     #     self.move_to_pose(pose)
-        #     #     return
-        #     # self.move_to_pose(pose)
-        #     # rospy.loginfo("Done moving")
-        #     # time.sleep(3)
+        #     if(i>13):
+        #         # print("i : ",i)
+        #         rospy.loginfo("Couldn't detect object")
+        #         pose = {'joint_head_pan': 0}
+        #         self.move_to_pose(pose)
+        #         return
+        #     self.move_to_pose(pose)
+        #     rospy.loginfo("Done moving")
+        #     time.sleep(3)
 
         # open = 0.15283721447
         # close=-0.37
@@ -329,7 +328,7 @@ class ManipulationNode(hm.HelloNode):
     def trigger_drop_object_callback(self):
         rospy.loginfo("grasp service called")
         pose = {'joint_head_tilt':(np.deg2rad(-90))/3}
-        self.move_to_pose(pose)
+        # self.move_to_pose(pose)
         rospy.wait_for_service('perception_shipping_service')
         try:
             perception_drop_client = rospy.ServiceProxy('perception_shipping_service', perception_shipping)
@@ -365,14 +364,14 @@ class ManipulationNode(hm.HelloNode):
                 # print("i : ",i)
                 rospy.loginfo("Couldn't detect object")
                 pose = {'joint_head_pan': 0}
-                self.move_to_pose(pose)
+                # self.move_to_pose(pose)
                 return
-            self.move_to_pose(pose)
+            # self.move_to_pose(pose)
             rospy.loginfo("Done moving")
             time.sleep(3)
 
-        open = 0.15283721447
-        close=-0.37
+        open  =  0.15283721447
+        close = -0.37
             
         # Steps
         if self.goal_x and self.goal_y and self.goal_z:
@@ -436,7 +435,7 @@ class ManipulationNode(hm.HelloNode):
                     error = self.goal_x - 0.6
                     rospy.loginfo("Correcting error : "+str(error))
                     poses[i] = {'translate_mobile_base':error}
-                    self.move_to_pose(poses[i])
+                    # self.move_to_pose(poses[i])
                     time.sleep(5*(np.abs(error)))
 
                     resp1 = perception_drop_client(True)
@@ -478,7 +477,7 @@ class ManipulationNode(hm.HelloNode):
                     error = self.goal_x #+ 0.03
                     rospy.loginfo("Correcting error : "+str(error))
                     poses[i] = {'translate_mobile_base':error}
-                    self.move_to_pose(poses[i])
+                    # self.move_to_pose(poses[i])
                     time.sleep(5*(np.abs(error)))
 
                     resp1 = perception_drop_client(True)
@@ -519,14 +518,14 @@ class ManipulationNode(hm.HelloNode):
                 poses[i] = {'wrist_extension':extension}
                 if extension > 0.5:
                     extension = 0.5
-                self.move_to_pose(poses[i])
+                # self.move_to_pose(poses[i])
                 time.sleep(10*(extension))
                 # self.move_to_pose(poses[i])
                     # extension = (-(self.goal_y))-0.36
                 continue
             if(i==9 or i==10):
                 time_sleep = 3
-            self.move_to_pose(poses[i])
+            # self.move_to_pose(poses[i])
             # rospy.loginfo("Completed calling : "+str(i))
             sl = np.abs((-(self.goal_y))-0.26) * 10
             # rospy.loginfo("Sleeping for : "+str(time_sleep))
