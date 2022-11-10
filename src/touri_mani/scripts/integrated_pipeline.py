@@ -24,6 +24,7 @@ from nav_msgs.msg import Odometry
 from std_msgs.msg import String, Bool
 import hello_helpers.hello_misc as hm
 from touri_perception.srv import transform_service,transform_serviceResponse
+from touri_mani.srv import grasp_service, grasp_serviceResponse
 from touri_perception.srv import perception_picking,perception_pickingResponse
 from touri_perception.srv import perception_shipping,perception_shippingResponse
 
@@ -95,220 +96,237 @@ class ManipulationNode(hm.HelloNode):
 
     def trigger_picking_pipeline_callback(self, request):
         rospy.loginfo("pick service called")
-        # pose = {'joint_head_tilt':(np.deg2rad(-90))/3}
-        # self.move_to_pose(pose)
+        pose = {'joint_head_tilt':(np.deg2rad(-90))/3}
+        self.move_to_pose(pose)
+        object_id = request.object_id
+        offsets = np.zeros(11,3)
+        
+        # id=0,  => 'cmu_tartan_bottle'
+        # id=1,  => 'tennis_ball_toy'
+        # id=2,  => 'cmu_cup'
+        # id=3,  => 'cmu_bottle'
+        # id=4,  => 'monkey_keychain'
+        # id=5,  => 'transparent_bottle'
+        # id=6,  => 'all_star_dogs_belt'
+        # id=7,  => 'dog_collar'
+        # id=8,  => 'cow_keychain'
+        # id=9,  => 'beanie'
+        # id=10,  => 'unicorn'
+        offsets[10][2] += 0.03
+        
+        # id=11,  => 'airpods_case'
 
-        # # Request centroid from picking service
-        # rospy.wait_for_service('perception_picking_service')
-        # try:
-        #     perception_picking_client = rospy.ServiceProxy('perception_picking_service', perception_picking)
-        # except rospy.ServiceException as e:
-        #     print("Service call failed: %s"%e)
-        #     return
+        # Request centroid from picking service
+        rospy.wait_for_service('perception_picking_service')
+        try:
+            perception_picking_client = rospy.ServiceProxy('perception_picking_service', perception_picking)
+        except rospy.ServiceException as e:
+            print("Service call failed: %s"%e)
+            return
 
-        # # Step 0 : Moving the camera to detect object 
-        # i = 1
-        # time.sleep(5)
-        # flag = False
-        # while flag==False:
-        #     resp1 = perception_picking_client(True)
-        #     flag = resp1.detected
-        #     if flag:
-        #         self.goal_x = resp1.x_reply
-        #         self.goal_y = resp1.y_reply
-        #         self.goal_z = resp1.z_reply
-        #         break
+        # Step 0 : Moving the camera to detect object 
+        i = 1
+        time.sleep(5)
+        flag = False
+        while flag==False:
+            resp1 = perception_picking_client(object_id)
+            flag = resp1.detected
+            if flag:
+                self.goal_x = resp1.x_reply
+                self.goal_y = resp1.y_reply
+                self.goal_z = resp1.z_reply
+                break
             
-        #     rospy.loginfo("Value:"+str(flag))
-        #     rospy.loginfo("Rotating clockwise : "+str(i*20)+"by 20 degrees")
-        #     # rot_angle = np.deg2rad(-20) * i
-        #     pose = {'joint_head_pan': np.deg2rad(-20) * i}
-        #     i=i+1
-        #     if i>9:
-        #         # print("i : ",i)
-        #         rospy.loginfo("Rotating clockwise : "+str((i-9)*20)+"by 10 degrees")
-        #         pose = {'joint_head_pan': np.deg2rad(20) * (i-9)}
-        #     rospy.loginfo(pose)
+            rospy.loginfo("Value:"+str(flag))
+            rospy.loginfo("Rotating clockwise : "+str(i*20)+"by 20 degrees")
+            # rot_angle = np.deg2rad(-20) * i
+            pose = {'joint_head_pan': np.deg2rad(-20) * i}
+            i=i+1
+            if i>9:
+                # print("i : ",i)
+                rospy.loginfo("Rotating clockwise : "+str((i-9)*20)+"by 10 degrees")
+                pose = {'joint_head_pan': np.deg2rad(20) * (i-9)}
+            rospy.loginfo(pose)
             
-        #     if(i>13):
-        #         # print("i : ",i)
-        #         rospy.loginfo("Couldn't detect object")
-        #         pose = {'joint_head_pan': 0}
-        #         self.move_to_pose(pose)
-        #         return
-        #     self.move_to_pose(pose)
-        #     rospy.loginfo("Done moving")
-        #     time.sleep(3)
+            if(i>13):
+                # print("i : ",i)
+                rospy.loginfo("Couldn't detect object")
+                pose = {'joint_head_pan': 0}
+                self.move_to_pose(pose)
+                return
+            self.move_to_pose(pose)
+            rospy.loginfo("Done moving")
+            time.sleep(3)
 
-        # open = 0.15283721447
-        # close=-0.37
+        open = 0.15283721447
+        close=-0.37
             
-        # # Steps
-        # if self.goal_x and self.goal_y and self.goal_z:
-        #     poses = [
-        #         # Step 0 - Home position
-        #         {'joint_lift': 0.3,'wrist_extension': 0.0, 'joint_gripper_finger_left':open},
-        #         # Step 1 - Rotate to bring the cup in center
-        #         {'rotate_mobile_base': np.arctan(self.goal_y/np.abs(self.goal_x))},
-        #         # Step 2 - Rotate Head
-        #         {'joint_head_pan':0},
-        #         # Step 3 - Translate
-        #         {'translate_mobile_base': self.goal_x - 0.6},
-        #         # Step 4
-        #         {'joint_lift': self.goal_z + 0.03},
-        #         # Step 5
-        #         {'rotate_mobile_base': 1.57},
-        #         # Step 6
-        #         {'joint_head_pan':-1.57},
+        # Steps
+        if self.goal_x and self.goal_y and self.goal_z:
+            poses = [
+                # Step 0 - Home position
+                {'joint_lift': 0.3,'wrist_extension': 0.0, 'joint_gripper_finger_left':open},
+                # Step 1 - Rotate to bring the cup in center
+                {'rotate_mobile_base': np.arctan(self.goal_y/np.abs(self.goal_x))},
+                # Step 2 - Rotate Head
+                {'joint_head_pan':0},
+                # Step 3 - Translate
+                {'translate_mobile_base': self.goal_x - 0.6},
+                # Step 4
+                {'joint_lift': self.goal_z + 0.03},
+                # Step 5
+                {'rotate_mobile_base': 1.57},
+                # Step 6
+                {'joint_head_pan':-1.57},
                 
-        #         # Step 7
-        #         {'translate_mobile_base': self.goal_x},
-        #         # Step 8
-        #         {'wrist_extension': (-(self.goal_y)) - 0.36},
-        #         # Step 9
-        #         {'joint_gripper_finger_left':close},
-        #         # Step 10
-        #         {'joint_lift':0.95},
-        #         # Step 11
-        #         {'wrist_extension':0},
-        #         # Step 12
-        #         {'joint_head_tilt':-1.57*2/3, 'joint_head_pan':0}
-        #     ]
-        # # 3,7,8,10
-        # for i in range(len(poses)):
-        #     rospy.loginfo("===================================================================")
-        #     rospy.loginfo("Performing step : "+str(i)+" : "+str(poses[i]))
-        #     if (i==0):
-        #         time_sleep = 2
-        #     if (i==1):
-        #         time_sleep = 0.05 * (np.rad2deg(np.arctan(self.goal_y/self.goal_x)))
-        #     if(i==2):
-        #         time_sleep = 2
-        #     if(i==3):
-        #         error = 1000
-        #         while(np.abs(error) > 0.01):
-        #             resp1 = perception_picking_client(True)
-        #             if(resp1.detected==False):
-        #                 for i in range(5):
-        #                     resp1 = perception_picking_client(True)
-        #                     if(resp1.detected==True):
-        #                         break
-        #                 else:
-        #                     print("Not detected")
-        #                     return
-        #             self.goal_x = resp1.x_reply
-        #             self.goal_y = resp1.y_reply
-        #             self.goal_z = resp1.z_reply
-        #             error = self.goal_x - 0.6
-        #             rospy.loginfo("Correcting error : "+str(error))
-        #             poses[i] = {'translate_mobile_base':error}
-        #             self.move_to_pose(poses[i])
-        #             time.sleep(5*(np.abs(error)))
+                # Step 7
+                {'translate_mobile_base': self.goal_x},
+                # Step 8
+                {'wrist_extension': (-(self.goal_y)) - 0.36},
+                # Step 9
+                {'joint_gripper_finger_left':close},
+                # Step 10
+                {'joint_lift':0.95},
+                # Step 11
+                {'wrist_extension':0},
+                # Step 12
+                {'joint_head_tilt':-1.57*2/3, 'joint_head_pan':0}
+            ]
+        # 3,7,8,10
+        for i in range(len(poses)):
+            rospy.loginfo("===================================================================")
+            rospy.loginfo("Performing step : "+str(i)+" : "+str(poses[i]))
+            if (i==0):
+                time_sleep = 2
+            if (i==1):
+                time_sleep = 0.05 * (np.rad2deg(np.arctan(self.goal_y/self.goal_x)))
+            if(i==2):
+                time_sleep = 2
+            if(i==3):
+                error = 1000
+                while(np.abs(error) > 0.01):
+                    resp1 = perception_picking_client(object_id)
+                    if(resp1.detected==False):
+                        for i in range(5):
+                            resp1 = perception_picking_client(object_id)
+                            if(resp1.detected==True):
+                                break
+                        else:
+                            print("Not detected")
+                            return
+                    self.goal_x = resp1.x_reply
+                    self.goal_y = resp1.y_reply
+                    self.goal_z = resp1.z_reply
+                    error = self.goal_x - 0.6
+                    rospy.loginfo("Correcting error : "+str(error))
+                    poses[i] = {'translate_mobile_base':error}
+                    self.move_to_pose(poses[i])
+                    time.sleep(5*(np.abs(error)))
 
-        #             resp1 = perception_picking_client(True)
-        #             if(resp1.detected==False):
-        #                 for i in range(5):
-        #                     resp1 = perception_picking_client(True)
-        #                     if(resp1.detected==True):
-        #                         break
-        #                 else:
-        #                     print("Not detected")
-        #                     return
-        #             self.goal_x = resp1.x_reply
-        #             self.goal_y = resp1.y_reply
-        #             self.goal_z = resp1.z_reply
-        #             error = self.goal_x - 0.6
-        #         rospy.loginfo("Error after step 3 : "+str(error))
-        #         continue
-        #     if(i==4):
-        #         resp1 = perception_picking_client(True)
-        #         if(resp1.detected==False):
-        #             for i in range(5):
-        #                 resp1 = perception_picking_client(True)
-        #                 if(resp1.detected==True):
-        #                     break
-        #             else:
-        #                 print("Not detected")
-        #                 return
-        #         self.goal_x = resp1.x_reply
-        #         self.goal_y = resp1.y_reply
-        #         self.goal_z = resp1.z_reply
-        #         poses[i] = {'joint_lift': self.goal_z}
-        #         time_sleep = 4
-        #     if (i==5 or i==6):
-        #         time_sleep = 3
-        #     if(i==7):
-        #         error = 1000
-        #         while(np.abs(error) > 0.006):
-        #             resp1 = perception_picking_client(True)
-        #             if(resp1.detected==False):
-        #                 for i in range(5):
-        #                     resp1 = perception_picking_client(True)
-        #                     if(resp1.detected==True):
-        #                         break
-        #                 else:
-        #                     print("Not detected")
-        #                     return
-        #             self.goal_x = resp1.x_reply
-        #             self.goal_y = resp1.y_reply
-        #             self.goal_z = resp1.z_reply
-        #             error = self.goal_x #+ 0.03
-        #             rospy.loginfo("Correcting error : "+str(error))
-        #             poses[i] = {'translate_mobile_base':error}
-        #             self.move_to_pose(poses[i])
-        #             time.sleep(5*(np.abs(error)))
+                    resp1 = perception_picking_client(object_id)
+                    if(resp1.detected==False):
+                        for i in range(5):
+                            resp1 = perception_picking_client(object_id)
+                            if(resp1.detected==True):
+                                break
+                        else:
+                            print("Not detected")
+                            return
+                    self.goal_x = resp1.x_reply
+                    self.goal_y = resp1.y_reply
+                    self.goal_z = resp1.z_reply
+                    error = self.goal_x - 0.6
+                rospy.loginfo("Error after step 3 : "+str(error))
+                continue
+            if(i==4):
+                resp1 = perception_picking_client(object_id)
+                if(resp1.detected==False):
+                    for i in range(5):
+                        resp1 = perception_picking_client(object_id)
+                        if(resp1.detected==True):
+                            break
+                    else:
+                        print("Not detected")
+                        return
+                self.goal_x = resp1.x_reply
+                self.goal_y = resp1.y_reply
+                self.goal_z = resp1.z_reply
+                poses[i] = {'joint_lift': self.goal_z}
+                time_sleep = 4
+            if (i==5 or i==6):
+                time_sleep = 3
+            if(i==7):
+                error = 1000
+                while(np.abs(error) > 0.006):
+                    resp1 = perception_picking_client(object_id)
+                    if(resp1.detected==False):
+                        for i in range(5):
+                            resp1 = perception_picking_client(object_id)
+                            if(resp1.detected==True):
+                                break
+                        else:
+                            print("Not detected")
+                            return
+                    self.goal_x = resp1.x_reply
+                    self.goal_y = resp1.y_reply
+                    self.goal_z = resp1.z_reply
+                    error = self.goal_x #+ 0.03
+                    rospy.loginfo("Correcting error : "+str(error))
+                    poses[i] = {'translate_mobile_base':error}
+                    self.move_to_pose(poses[i])
+                    time.sleep(5*(np.abs(error)))
 
-        #             resp1 = perception_picking_client(True)
-        #             if(resp1.detected==False):
-        #                 for i in range(5):
-        #                     resp1 = perception_picking_client(True)
-        #                     if(resp1.detected==True):
-        #                         break
-        #                 else:
-        #                     print("Not detected")
-        #                     return
-        #             self.goal_x = resp1.x_reply
-        #             self.goal_y = resp1.y_reply
-        #             self.goal_z = resp1.z_reply
-        #             error = self.goal_x #+ 0.03
-        #         rospy.loginfo("Error after step 7 : "+str(error))
-        #         # error = self.goal_x #+ 0.03
-        #         # rospy.loginfo("error : "+str(error))
-        #         # while(np.abs(error) > 0.006):
-        #         #     # if error>0:
+                    resp1 = perception_picking_client(object_id)
+                    if(resp1.detected==False):
+                        for i in range(5):
+                            resp1 = perception_picking_client(object_id)
+                            if(resp1.detected==True):
+                                break
+                        else:
+                            print("Not detected")
+                            return
+                    self.goal_x = resp1.x_reply
+                    self.goal_y = resp1.y_reply
+                    self.goal_z = resp1.z_reply
+                    error = self.goal_x #+ 0.03
+                rospy.loginfo("Error after step 7 : "+str(error))
+                # error = self.goal_x #+ 0.03
+                # rospy.loginfo("error : "+str(error))
+                # while(np.abs(error) > 0.006):
+                #     # if error>0:
                     
-        #         #     rospy.loginfo("Correcting error : "+str(error))
-        #         #     poses[i] = {'translate_mobile_base': error}
-        #         #     self.move_to_pose(poses[i])
-        #         #     time.sleep(5*(np.abs(error)))
-        #         #     error = self.goal_x #+ 0.03
-        #         # rospy.loginfo("Error after step 7 : "+str(error))
-        #         continue
-        #     if(i==8):
-        #         rospy.loginfo("self.goal_y"+str(self.goal_y))
-        #         extension = (-(self.goal_y))-0.26 + 0.055
-        #         rospy.loginfo("extension : "+str(extension))
-        #         # while(self.goal_y > 0.01):
-        #             # print("extension",extension)
-        #         poses[i] = {'wrist_extension':extension}
-        #         if extension > 0.5:
-        #             extension = 0.5
-        #         self.move_to_pose(poses[i])
-        #         time.sleep(10*(extension))
-        #         # self.move_to_pose(poses[i])
-        #             # extension = (-(self.goal_y))-0.36
-        #         continue
-        #     if(i==9 or i==10):
-        #         time_sleep = 3
-        #     self.move_to_pose(poses[i])
-        #     # rospy.loginfo("Completed calling : "+str(i))
-        #     sl = np.abs((-(self.goal_y))-0.26) * 10
-        #     # rospy.loginfo("Sleeping for : "+str(time_sleep))
-        #     time.sleep(np.abs(time_sleep))
-        #     rospy.loginfo("Completed performing step : "+str(i))
+                #     rospy.loginfo("Correcting error : "+str(error))
+                #     poses[i] = {'translate_mobile_base': error}
+                #     self.move_to_pose(poses[i])
+                #     time.sleep(5*(np.abs(error)))
+                #     error = self.goal_x #+ 0.03
+                # rospy.loginfo("Error after step 7 : "+str(error))
+                continue
+            if(i==8):
+                rospy.loginfo("self.goal_y"+str(self.goal_y))
+                extension = (-(self.goal_y))-0.26 + 0.055
+                rospy.loginfo("extension : "+str(extension))
+                # while(self.goal_y > 0.01):
+                    # print("extension",extension)
+                poses[i] = {'wrist_extension':extension}
+                if extension > 0.5:
+                    extension = 0.5
+                self.move_to_pose(poses[i])
+                time.sleep(10*(extension))
+                # self.move_to_pose(poses[i])
+                    # extension = (-(self.goal_y))-0.36
+                continue
+            if(i==9 or i==10):
+                time_sleep = 3
+            self.move_to_pose(poses[i])
+            # rospy.loginfo("Completed calling : "+str(i))
+            sl = np.abs((-(self.goal_y))-0.26) * 10
+            # rospy.loginfo("Sleeping for : "+str(time_sleep))
+            time.sleep(np.abs(time_sleep))
+            rospy.loginfo("Completed performing step : "+str(i))
 
-        #     if(i==11 or i==12):
-        #         time_sleep = 2
+            if(i==11 or i==12):
+                time_sleep = 2
 
         # # Picking completed
         rospy.loginfo("Picking completed")
@@ -328,7 +346,7 @@ class ManipulationNode(hm.HelloNode):
     def trigger_drop_object_callback(self):
         rospy.loginfo("grasp service called")
         pose = {'joint_head_tilt':(np.deg2rad(-90))/3}
-        # self.move_to_pose(pose)
+        self.move_to_pose(pose)
         rospy.wait_for_service('perception_shipping_service')
         try:
             perception_drop_client = rospy.ServiceProxy('perception_shipping_service', perception_shipping)
@@ -364,14 +382,14 @@ class ManipulationNode(hm.HelloNode):
                 # print("i : ",i)
                 rospy.loginfo("Couldn't detect object")
                 pose = {'joint_head_pan': 0}
-                # self.move_to_pose(pose)
+                self.move_to_pose(pose)
                 return
-            # self.move_to_pose(pose)
+            self.move_to_pose(pose)
             rospy.loginfo("Done moving")
             time.sleep(3)
 
-        open  =  0.15283721447
-        close = -0.37
+        open  = 0.15283721447
+        close =-0.37
             
         # Steps
         if self.goal_x and self.goal_y and self.goal_z:
@@ -431,11 +449,11 @@ class ManipulationNode(hm.HelloNode):
                             return
                     self.goal_x = resp1.x_reply
                     self.goal_y = resp1.y_reply
-                    self.goal_z = resp1.z_reply
+                    self.goal_z = resp1.z_reply + 0.05
                     error = self.goal_x - 0.6
                     rospy.loginfo("Correcting error : "+str(error))
                     poses[i] = {'translate_mobile_base':error}
-                    # self.move_to_pose(poses[i])
+                    self.move_to_pose(poses[i])
                     time.sleep(5*(np.abs(error)))
 
                     resp1 = perception_drop_client(True)
@@ -449,7 +467,7 @@ class ManipulationNode(hm.HelloNode):
                             return
                     self.goal_x = resp1.x_reply
                     self.goal_y = resp1.y_reply
-                    self.goal_z = resp1.z_reply
+                    self.goal_z = resp1.z_reply + 0.05
                     error = self.goal_x - 0.6
                 rospy.loginfo("Error after step 3 : "+str(error))
                 continue
@@ -473,11 +491,11 @@ class ManipulationNode(hm.HelloNode):
                             return
                     self.goal_x = resp1.x_reply
                     self.goal_y = resp1.y_reply
-                    self.goal_z = resp1.z_reply
+                    self.goal_z = resp1.z_reply + 0.05
                     error = self.goal_x #+ 0.03
                     rospy.loginfo("Correcting error : "+str(error))
                     poses[i] = {'translate_mobile_base':error}
-                    # self.move_to_pose(poses[i])
+                    self.move_to_pose(poses[i])
                     time.sleep(5*(np.abs(error)))
 
                     resp1 = perception_drop_client(True)
@@ -491,7 +509,7 @@ class ManipulationNode(hm.HelloNode):
                             return
                     self.goal_x = resp1.x_reply
                     self.goal_y = resp1.y_reply
-                    self.goal_z = resp1.z_reply
+                    self.goal_z = resp1.z_reply + 0.05
                     error = self.goal_x #+ 0.03
                 rospy.loginfo("Error after step 7 : "+str(error))
                 # error = self.goal_x #+ 0.03
@@ -518,14 +536,14 @@ class ManipulationNode(hm.HelloNode):
                 poses[i] = {'wrist_extension':extension}
                 if extension > 0.5:
                     extension = 0.5
-                # self.move_to_pose(poses[i])
+                self.move_to_pose(poses[i])
                 time.sleep(10*(extension))
                 # self.move_to_pose(poses[i])
                     # extension = (-(self.goal_y))-0.36
                 continue
             if(i==9 or i==10):
                 time_sleep = 3
-            # self.move_to_pose(poses[i])
+            self.move_to_pose(poses[i])
             # rospy.loginfo("Completed calling : "+str(i))
             sl = np.abs((-(self.goal_y))-0.26) * 10
             # rospy.loginfo("Sleeping for : "+str(time_sleep))
@@ -555,8 +573,8 @@ class ManipulationNode(hm.HelloNode):
         #                                                    Trigger,
         #                                                    self.trigger_drop_object_callback)
         print("Starting service")
-        self.trigger_grasp_object_service = rospy.Service('/grasp_object/trigger_grasp_object',
-                                                           Trigger,
+        self.trigger_grasp_object_service = rospy.Service('/grasp_object/grasp_service_call',
+                                                           grasp_service,
                                                            self.trigger_picking_pipeline_callback)
         # self.trigger_grasp_object_service = rospy.Service('/grasp_object/trigger_grasp_object',
         #                                                    Trigger,

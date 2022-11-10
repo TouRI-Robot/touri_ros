@@ -14,7 +14,8 @@ find_package(catkin REQUIRED COMPONENTS
   rospy
   std_msgs
   message_generation
-  pcl_conversions pcl_ros
+  pcl_conversions 
+  pcl_ros
   OpenCV
   cv_bridge
   image_transport
@@ -142,8 +143,8 @@ add_executable(centroid_service src/centroid_calc.cpp)
 add_executable(picking_centroid_service src/picking_centroid_calc.cpp)
 
 # target_link_libraries(cloud_trial ${catkin_LIBRARIES} ${PCL_LIBRARIES})
-target_link_libraries(centroid_service ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${OpenCV_LIBRARIES})
-target_link_libraries(picking_centroid_service ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${OpenCV_LIBRARIES})
+target_link_libraries(centroid_service ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${OpenCV_LIBRARIES} pcl_visualization)
+target_link_libraries(picking_centroid_service ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${OpenCV_LIBRARIES} pcl_visualization)
 
 ## Declare a C++ library
 # add_library(${PROJECT_NAME}
@@ -184,10 +185,10 @@ target_link_libraries(picking_centroid_service ${catkin_LIBRARIES} ${PCL_LIBRARI
 
 ## Mark executable scripts (Python etc.) for installation
 ## in contrast to setup.py, you can choose the destination
- catkin_install_python(PROGRAMS
-   scripts/cups_pose_estimator.py
-   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
- )
+#  catkin_install_python(PROGRAMS
+#    scripts/cups_pose_estimator.py
+#    DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+#  )
 
 ## Mark executables for installation
 ## See http://docs.ros.org/melodic/api/catkin/html/howto/format1/building_executables.html
