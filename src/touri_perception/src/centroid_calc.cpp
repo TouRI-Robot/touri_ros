@@ -74,8 +74,15 @@ using namespace message_filters;
 
 typedef pcl::PointCloud<pcl::PointXYZ> PointCloud;
 
-// Publisher 
+// Publish centroids and normals
 ros::Publisher marker_pub;
+
+// Publish planes 
+sensor_msgs::PointCloud2 plane_data;
+ros::Publisher planes_pub;
+
+// Markers to draw normals and centroids
+visualization_msgs::Marker vis_centroids, vis_normals;
 
 // image pointers - updated in callback
 ImageConstPtr depth_=nullptr;
@@ -97,12 +104,22 @@ void callback(const ImageConstPtr& depth_sub, const ImageConstPtr& image_sub, co
   depth_ = depth_sub;
   image_ = image_sub;
   cloud_ = cloud_sub;
-  // marker_pub.publish(vis_centroids);
+  // Publish the data.
+  // pub.publish(output);
+  geometry_msgs::Point p;
+  p.x = 5.0f;
+  p.y = 3.0f;
+  p.z = 2.0f;
+
+  vis_centroids.points.push_back(p);
+  // std::cout << "Publishing \n";
+  marker_pub.publish(vis_centroids);
   // marker_pub.publish(vis_normals);
+  // planes_pub.publish(plane_data)
   // ROS_INFO("Updating image pointers");
 }
 
-pcl::visualization::PCLVisualizer::Ptr rgbVis (pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr cloud)
+pcl::visualization::PCLVisualizer::Ptr rgbVis(pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr cloud)
 {
   // --------------------------------------------
   // -----Open 3D viewer and add point cloud-----
@@ -115,6 +132,13 @@ pcl::visualization::PCLVisualizer::Ptr rgbVis (pcl::PointCloud<pcl::PointXYZRGB>
   // viewer->addCoordinateSystem (1.0);
   // viewer->initCameraParameters ();
   return (viewer);
+}
+
+void updateVis(boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer, pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr cloud){
+  pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb(cloud);
+  viewer->removePointCloud();
+  viewer->addPointCloud<pcl::PointXYZRGB> (cloud, rgb);
+  viewer->spinOnce();
 }
 
 bool service_callback(touri_perception::centroid_calc::Request  &req,
@@ -139,38 +163,6 @@ bool service_callback(touri_perception::centroid_calc::Request  &req,
   marker.color.g = 0.0;
   marker.color.b = 0.0;
   
-  // Markers to draw normals and centroids
-  visualization_msgs::Marker vis_centroids, vis_normals;
-
-  // Common for points and normals
-  vis_centroids.header.frame_id = vis_normals.header.frame_id = "my_frame";
-  vis_centroids.header.stamp = vis_normals.header.stamp = ros::Time::now();
-  vis_centroids.ns = vis_normals.ns = "points_and_lines";
-  vis_centroids.action = vis_normals.action = visualization_msgs::Marker::ADD;
-  vis_centroids.pose.orientation.w = vis_normals.pose.orientation.w = 1.0;
-
-  vis_centroids.id = 0;
-  vis_normals.id = 1;
-
-  vis_centroids.type = visualization_msgs::Marker::POINTS;
-  vis_normals.type = visualization_msgs::Marker::ARROW;
-
-  // POINTS markers use x and y scale for width/height respectively
-  vis_centroids.scale.x = 5.0;
-  vis_centroids.scale.y = 5.0;
-
-  // vis_normals markers use only the x component of scale, for the line width
-  vis_normals.scale.x = 0.1;
-  vis_normals.scale.x = 0.1;
-
-  // Points are green
-  vis_centroids.color.g = 1.0f;
-  vis_centroids.color.a = 1.0;
-
-  // Line strip is blue
-  vis_normals.color.b = 1.0;
-  vis_normals.color.a = 1.0;
-
   cv_bridge::CvImagePtr cv_ptr;
   const sensor_msgs::ImageConstPtr& source = image_;
   try
@@ -215,9 +207,10 @@ bool service_callback(touri_perception::centroid_calc::Request  &req,
   ROS_INFO("changing the image node current");
   cv::rectangle( cv_ptr->image, start_point1, end_point1, CV_RGB(255,0,0), thickness);
   cv::rectangle( cv_ptr->image, start_point2, end_point2, CV_RGB(0,255,0), thickness);
+  std::cout << "Savning oimg\n";
   cv::namedWindow("image_window", cv::WINDOW_AUTOSIZE);
   cv::imshow("image_window", cv_ptr->image);
-  cv::waitKey(30);
+  cv::waitKey(1);
   // cv::imwrite("/home/hello-robot/overwritten_image.jpg", cv_ptr->image);
 
   // ======================== Estimate centroid in 3D ========================       
@@ -245,6 +238,8 @@ bool service_callback(touri_perception::centroid_calc::Request  &req,
   vector<double> end_homo = {{end_point2_x, end_point2_y, 1.0}};
   double end_3d = dot_product(camera_matrix_inverse, end_homo);
 
+  ROS_INFO("Calulated start and end 3d");
+
   cv_bridge::CvImagePtr cv_ptr_depth;
   const sensor_msgs::ImageConstPtr& source_depth = depth_;
   try
@@ -264,6 +259,8 @@ bool service_callback(touri_perception::centroid_calc::Request  &req,
   // std::cout << "centroid x : " << centroidx << "\n";
   
   cv::Mat Z = depth_image(cv::Range((centroidy - window_size), (centroidy + window_size)), cv::Range((centroidx - window_size), (centroidx + window_size)));
+  
+  ROS_INFO("Calulated cv::Mat Z");
   
   int num_elements = 0;
   double sum = 0;
@@ -306,14 +303,19 @@ bool service_callback(touri_perception::centroid_calc::Request  &req,
   std::vector<std::vector<float>> plane_normals;
   std::vector<std::vector<float>> plane_centroids;
   
+  // auto viewer = rgbVis(cropped_cloud);
+  ROS_INFO("Calculating planes");
+
   int num_planes = 4;
   for(int i = 0; i < num_planes; i++)
   {
+    std::cout << "I : " << i << "\n";
     // std::cout << "iteration : "<< i << "\n";
     std::vector<int> inliers;
     std::vector<int> outliers;
 
     // RandomSampleConsensus object and compute the appropriated model
+    std::cout << "Ransac\n";
     num_points = cropped_cloud->size();  
     pcl::SampleConsensusModelPlane<pcl::PointXYZRGB>::Ptr model_p (new pcl::SampleConsensusModelPlane<pcl::PointXYZRGB> (cropped_cloud));
     pcl::RandomSampleConsensus<pcl::PointXYZRGB> ransac (model_p);
@@ -327,18 +329,21 @@ bool service_callback(touri_perception::centroid_calc::Request  &req,
     inlier_indices->indices = inliers;
 
     // Centroid computation
+    std::cout << "Centroid computation\n";
     Eigen::Vector4f centroid;
     pcl::compute3DCentroid(*cropped_cloud, *inlier_indices, centroid);
     std::vector<float> plane_centroid(&centroid[0], centroid.data()+centroid.cols()*centroid.rows());
     plane_centroids.push_back(plane_centroid);
 
     // Extracting model
+    std::cout << "Extracting model\n";
     Eigen::VectorXf model_coefficients;
     ransac.getModelCoefficients(model_coefficients);
     std::vector<float> plane_normal(&model_coefficients[0], model_coefficients.data()+model_coefficients.cols()*model_coefficients.rows());
     plane_normals.push_back(plane_normal);
 
     // Creating outliers
+    std::cout << "Creating outliers\n";
     int inlier_iter = 0;
     for(int i=0;i < num_points;++i){
       if(inliers[inlier_iter] == i)
@@ -346,22 +351,30 @@ bool service_callback(touri_perception::centroid_calc::Request  &req,
       else
         outliers.push_back(i);
     }
-
+  
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr outlier_cloud (new pcl::PointCloud<pcl::PointXYZRGB>);
     pcl::copyPointCloud (*cropped_cloud, outliers, *outlier_cloud);
     cropped_cloud = outlier_cloud;
+    // updateVis(viewer, cropped_cloud); 
   }
  
+  ROS_INFO("Calulated planes");
+  
   int a = 0;
   int b = 0;
 
   bool foundPlanes = false;
-  for(int i=0;i < num_planes; ++i){
-    for(int j=0;j < num_planes; ++j){
+  for(int i=0; i < num_planes; ++i){
+    for(int j=0; j < num_planes; ++j){
       if(i!=j){
         double dot_product_value = 0;
-        for (int k = 0; k < plane_normals[i].size(); ++k)
+        for (int k = 0; k < 3; ++k){
+          std::cout << "i : "<< " k " << plane_normals[i][k] << "\n";
+          std::cout << "j : "<< " k " << plane_normals[i][k] << "\n";
+          
           dot_product_value += (plane_normals[i][k] * plane_normals[j][k]);
+        }
+          
         if(abs(dot_product_value)<=1 && abs(dot_product_value)>=0.96){
           a = i;
           b = j;
@@ -374,6 +387,11 @@ bool service_callback(touri_perception::centroid_calc::Request  &req,
       break;
     }
   }
+
+  // if(!foundPlanes){
+  //   std::cout << "planes not found\n";
+  //   return false;
+  // }
 
   std::cout << "a : " << a << "\n";
   std::cout << "b : " << b << "\n";
@@ -401,17 +419,17 @@ bool service_callback(touri_perception::centroid_calc::Request  &req,
   p.z = z_3d;
 
   vis_centroids.points.push_back(p);
-  vis_normals.points.push_back(p);
+  // vis_normals.points.push_back(p);
   
-  std::cout << "Publishing \n";
+  // std::cout << "Publishing \n";
   marker_pub.publish(vis_centroids);
-  marker_pub.publish(vis_normals);
+  // marker_pub.publish(vis_normals);
 
   res.x_reply = x_3d;
   res.y_reply = y_3d;
   res.z_reply = z_3d;
   res.width = -1;
-  
+  std::cout << "Returning true from service\n";
   return true;
 }
 
@@ -422,7 +440,43 @@ int main(int argc, char** argv)
   ros::NodeHandle nh;
   ros::ServiceServer service = nh.advertiseService("centroid_calc", service_callback);
 
+  // ========================== CENTROID AND NORMALS DEFINITION ======================
+  // Common for points and normals
+  vis_centroids.header.frame_id = vis_normals.header.frame_id = "camera_link";
+  vis_centroids.header.stamp = vis_normals.header.stamp = ros::Time::now();
+  vis_centroids.ns = vis_normals.ns = "points_and_lines";
+  vis_centroids.action = vis_normals.action = visualization_msgs::Marker::ADD;
+  vis_centroids.pose.orientation.w = vis_normals.pose.orientation.w = 1.0;
+
+  vis_centroids.id = 0;
+  vis_normals.id = 1;
+
+  vis_centroids.type = visualization_msgs::Marker::SPHERE;
+  // visualization_msgs::Marker::POINTS;
+  vis_normals.type = visualization_msgs::Marker::ARROW;
+
+  // POINTS markers use x and y scale for width/height respectively
+  vis_centroids.scale.x = 0.2;
+  vis_centroids.scale.y = 0.2;
+  vis_centroids.scale.z = 0.2;
+
+  // vis_normals markers use only the x component of scale, for the line width
+  vis_normals.scale.x = 0.1;
+  vis_normals.scale.x = 0.1;
+
+  // Points are green
+  vis_centroids.color.g = 1.0f;
+  vis_centroids.color.a = 1.0;
+
+  // Line strip is blue
+  vis_normals.color.b = 1.0;
+  vis_normals.color.a = 1.0;
+  // ========================== CENTROID AND NORMALS DEFINITION ======================
+
+
+  // Publish
   marker_pub = nh.advertise<visualization_msgs::Marker>("visualization_marker", 10);
+  planes_pub = nh.advertise<sensor_msgs::PointCloud2> ("planes_topic", 1);
 
   // ros::NodeHandle nh;
   message_filters::Subscriber<Image> depth_sub(nh, "/camera/aligned_depth_to_color/image_raw", 1000);
@@ -436,66 +490,3 @@ int main(int argc, char** argv)
 
   return 0;
 }
-
-
-
-
-
-
-
-
-
-
-// #include <ros/ros.h>
-// #include <pcl_ros/point_cloud.h>
-// #include <pcl/point_types.h>
-// #include <pcl/visualization/cloud_viewer.h>
-// #include <sensor_msgs/PointCloud2.h>
-// #include <pcl_conversions/pcl_conversions.h>
-// #include <iostream>
-// #include <pcl/common/common_headers.h>
-// #include <pcl/features/normal_3d.h>
-// #include <pcl/io/pcd_io.h>
-// #include <pcl/visualization/pcl_visualizer.h>
-// #include <pcl/console/parse.h>
-
-// typedef pcl::PointCloud<pcl::PointXYZ> PointCloud;
-
-// class cloudHandler
-// {
-// public:
-//     cloudHandler():viewer("Cloud Viewer")
-//     {
-//         pcl_sub = nh.subscribe("/camera/depth_registered/points", 10, &cloudHandler::cloudCB, this);
-//         viewer_timer = nh.createTimer(ros::Duration(0.1), &cloudHandler::timerCB,this);
-//     }
-
-//     void cloudCB(const sensor_msgs::PointCloud2 &input)
-//     {
-//         pcl::PointCloud<pcl::PointXYZRGB> cloud;
-//         pcl::fromROSMsg (input, cloud);
-//         viewer.showCloud(cloud.makeShared());
-//     }
-
-//     void timerCB(const ros::TimerEvent&)
-//     {
-//         if(viewer.wasStopped())
-//             {
-//                 ros::shutdown();
-//             }
-//     }
-
-// protected:
-//     ros::NodeHandle nh;
-//     ros::Subscriber pcl_sub;
-//     pcl::visualization::CloudViewer viewer;
-//     ros::Timer viewer_timer;    
-// };
-
-// int main(int argc, char** argv)
-// {
-//     ros::init(argc, argv, "pcl_visualize");
-//     cloudHandler handler;
-//     ros::spin();
-//     return 0;
-// }

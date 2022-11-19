@@ -122,30 +122,33 @@ bool service_callback(touri_perception::picking_centroid_calc::Request  &req,
 
   // intrinsic matrix
   vector<vector<double>>camera_matrix{
-                    {910.7079467773438, 0.0, 634.5316772460938},
-                    {0.0, 910.6213989257812, 355.40097045898},
+                    {903.6427001953125, 0.0, 642.1788940429688},
+                    {0.0, 901.4734497070312, 364.210693359375},
                     {0.0, 0.0, 1.0}
                     };
+
+  // vector<vector<double>>camera_matrix{
+  //                   {910.7079467773438, 0.0, 634.5316772460938},
+  //                   {0.0, 910.6213989257812, 355.40097045898},
+  //                   {0.0, 0.0, 1.0}
+  //                   };
 
   double f_x = camera_matrix[0][0];
   double c_x = camera_matrix[0][2];
   double f_y = camera_matrix[1][1];
   double c_y = camera_matrix[1][2];
 
-  vector<vector<double>>camera_matrix_inverse{
-                      {0.0010980468585331087935, 0.0, -0.69674551483981780681},
-                      {0.0, 0.0010981512197930497631, -0.39028400922516253192},
-                      {0.0, 0.0, 1.0}
-                      };
-
+  // cv::namedWindow("image_window", cv::WINDOW_AUTOSIZE);
+  // cv::imshow("image_window", cv_ptr->image);
+  // cv::waitKey(1);
+  cv::Point center(centroidx, centroidy);//Declaring the center point
+  int radius = 5; //Declaring the radius
+  cv::Scalar line_Color(255, 0, 0); //Color of the circle
+  cv::circle(cv_ptr->image, center, radius, line_Color, -1);
+  cv::imwrite("/home/hello-robot/trial/catkin_ws/src/stretch_ros/touri_ros/src/touri_perception/src/picking_2d_result.jpg", cv_ptr->image);
   // ======================== ESTIMATING 3D CENTROID ========================
   // 3d point from 2d point
-  vector<double> start_homo = {{start_point2_x, start_point2_y, 1.0}};
   
-  double start_3d = dot_product(camera_matrix_inverse, start_homo);
-  vector<double> end_homo = {{end_point2_x, end_point2_y, 1.0}};
-  double end_3d = dot_product(camera_matrix_inverse, end_homo);
-
   cv_bridge::CvImagePtr cv_ptr_depth;
   const sensor_msgs::ImageConstPtr& source_depth = depth_;
   try
@@ -160,11 +163,13 @@ bool service_callback(touri_perception::picking_centroid_calc::Request  &req,
 
   double z_3d = -1;
   cv::Mat depth_image = cv_ptr_depth->image;
-  int window_size = 10;
+  int window_size = 50;
   std::cout << "centroid y : " << centroidy << "\n";
   std::cout << "centroid x : " << centroidx << "\n";
   
-  cv::Mat Z = depth_image(cv::Range((centroidy - window_size), (centroidy + window_size)), cv::Range((centroidx - window_size), (centroidx + window_size)));
+  cv::Mat Z = depth_image(cv::Range((centroidy - int(h/4)), (centroidy + int(h/4))), cv::Range((centroidx - int(w/4)), (centroidx + int(w/4))));
+  // cv::Mat Z = depth_image(cv::Range((centroidy - int(h/4)), (centroidy + int(h/4))), cv::Range((centroidx - int(w/4)), (centroidx + int(w/4))));
+  cv::imwrite("/home/hello-robot/trial/catkin_ws/src/stretch_ros/touri_ros/src/touri_perception/src/Z_image.jpg", Z);
   
   int num_elements = 0;
   double sum = 0;
@@ -173,6 +178,7 @@ bool service_callback(touri_perception::picking_centroid_calc::Request  &req,
       for(int j = 0; j < Z.cols; j++)
       {
           if (Z.at<uint16_t>(j, i) > 0) {
+            // std::cout << "z : " << Z.at<uint16_t>(j, i) << "\n"; 
             sum += Z.at<uint16_t>(j, i);
             num_elements++;
           }
@@ -184,6 +190,10 @@ bool service_callback(touri_perception::picking_centroid_calc::Request  &req,
   double x_3d = ((centroidx - c_x) / f_x) * z_3d;
   double y_3d = ((centroidy - c_y) / f_y) * z_3d;
 
+  std::cout << "x_3d_in_camera_frame : " << x_3d << "\n";
+  std::cout << "y_3d_in_camera_frame : " << y_3d << "\n";
+  std::cout << "z_3d_in_camera_frame : " << z_3d << "\n";
+  
   res.x_reply = x_3d;
   res.y_reply = y_3d;
   res.z_reply = z_3d;
