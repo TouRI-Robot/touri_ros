@@ -12,9 +12,9 @@ class COLLECT_TRAINING_DATA(object):
         self.dataset_directory = dataset_directory
         self.colours = np.random.choice(np.arange(256,dtype='uint8'), size=(self.num_objects, 3))
         self.tracker_types = ['BOOSTING', 'MIL','KCF', 'TLD', 'MEDIANFLOW', 'CSRT', 'MOSSE']
-        self.tracker_type = self.tracker_types[5]
+        self.tracker_type = self.tracker_types[0]
         self.trackers  = []
-        if self.tracker_type == 'CSRT':
+        if self.tracker_type == 'BOOSTING':
             for i in range(self.num_objects):
                 self.trackers.append(cv2.legacy.TrackerCSRT_create())
         
@@ -75,7 +75,7 @@ class COLLECT_TRAINING_DATA(object):
         save_frame_num = 0
         try:
             while True:
-                time.sleep(0.2)
+                time.sleep(0.05)
                 frames = self.pipeline.wait_for_frames()
                 color_frame = frames.get_color_frame()
                 frame = np.asanyarray(color_frame.get_data())
@@ -110,8 +110,8 @@ class COLLECT_TRAINING_DATA(object):
                     save_frame_num += 1
                     print("Saving image : ",save_frame_num)
 
-                cv2.namedWindow('RealSense', cv2.WINDOW_AUTOSIZE)
-                cv2.imshow('RealSense', self.color_image)
+                # cv2.namedWindow('RealSense', cv2.WINDOW_AUTOSIZE)
+                # cv2.imshow('RealSense', self.color_image)
                 
                 if cv2.waitKey(1) & 0xFF == ord('q'):
                     break
@@ -140,10 +140,10 @@ class COLLECT_TRAINING_DATA(object):
 # id=11, name='airpods_case'
 
 if __name__ == '__main__':
-    num_objects = 3
-    labels = [9, 10, 11]
-    dataset_directory = os.path.join("/home/hello-robot/trial/catkin_ws/src/stretch_ros/touri_ros/src/touri_perception/dataset/souvenir_dataset",\
-                                        "souvenir_train_dataset8")
+    num_objects = 1
+    labels = [0]
+    dataset_directory = os.path.join("/home/hello-robot/trial/catkin_ws/src/stretch_ros/touri_ros/src/touri_perception/dataset/drop_box_dataset",\
+                                        "staplebox_dataset8")
     train_data_collector = COLLECT_TRAINING_DATA(labels, num_objects, dataset_directory)
     train_data_collector.capture_initial_labels()
     train_data_collector.start_labelling()

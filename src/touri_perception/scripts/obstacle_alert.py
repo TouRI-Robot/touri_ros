@@ -36,7 +36,6 @@ def callback(msg):
 
         left_window_min = min(left_window_means)
 
-        print("left", left_window_min)
 
         if(msg.range_min <= left_window_min and left_window_min <= 0.4):
             l = 2
@@ -66,7 +65,6 @@ def callback(msg):
 
         backward_window_min = min(backward_window_means)
 
-        print("backward", backward_window_min)
         
         if(msg.range_min <= backward_window_min and backward_window_min <= 0.35):
             b = 2
@@ -96,7 +94,6 @@ def callback(msg):
 
         right_window_min = min(right_window_means)
 
-        print("right", right_window_min)
 
         if(msg.range_min <= right_window_min and right_window_min <= 0.4):
             r = 2
@@ -126,8 +123,6 @@ def callback(msg):
             forward_window_means.append(np.mean(window))
 
         forward_window_min = min(forward_window_means)
-
-        print("forward", forward_window_min)
 
         if(msg.range_min <= forward_window_min and forward_window_min <= 0.4):
             f = 2
